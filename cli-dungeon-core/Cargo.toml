@@ -1,0 +1,7 @@
+[package]
+name = "cli-dungeon-core"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+cli-dungeon-rules = { version = "*", path = "../cli-dungeon-rules" }

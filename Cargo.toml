@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = ["cli-dungeon", "cli-dungeon-core", "cli-dungeon-rules"]
