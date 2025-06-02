@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 cli-dungeon-rules = { version = "*", path = "../cli-dungeon-rules" }
+cli-dungeon-database = { version = "*", path = "../cli-dungeon-database" }

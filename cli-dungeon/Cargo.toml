@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 cli-dungeon-core = { version = "*", path = "../cli-dungeon-core" }
+tokio = { version = "1", features = ["full"] }
+
