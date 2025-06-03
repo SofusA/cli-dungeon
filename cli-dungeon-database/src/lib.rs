@@ -107,7 +107,7 @@ async fn init() {
         std::path::PathBuf::from(url.replace("sqlite://", ""))
     } else {
         let mut url = dirs::data_local_dir().unwrap();
-        url.push("qobuz-player");
+        url.push("cli-dungeon");
 
         if !url.exists() {
             std::fs::create_dir_all(&url).expect("failed to create database directory");

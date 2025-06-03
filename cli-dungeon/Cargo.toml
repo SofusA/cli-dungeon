@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 cli-dungeon-core = { version = "*", path = "../cli-dungeon-core" }
+color-print = "0.3"
 tokio = { version = "1", features = ["full"] }
 

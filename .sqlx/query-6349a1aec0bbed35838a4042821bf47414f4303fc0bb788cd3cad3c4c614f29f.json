@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "delete from characters where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "6349a1aec0bbed35838a4042821bf47414f4303fc0bb788cd3cad3c4c614f29f"
+}

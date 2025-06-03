@@ -1,0 +1,6 @@
+#!/bin/bash
+DATABASE_URL="sqlite:///tmp/cli-dungeon-data.db"
+cd cli-dungeon-database
+cargo sqlx db create && cargo sqlx migrate run
+cd ..
+

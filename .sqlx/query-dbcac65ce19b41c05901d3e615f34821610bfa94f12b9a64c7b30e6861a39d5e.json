@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            insert into characters (name, attack_dice, hit_bonus, max_health, current_health, armor_points)\n            values ( ?, ?, ?, ?, ?, ?)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "dbcac65ce19b41c05901d3e615f34821610bfa94f12b9a64c7b30e6861a39d5e"
+}
