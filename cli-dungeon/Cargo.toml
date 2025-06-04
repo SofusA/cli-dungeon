@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cli-dungeon-database = { version = "*", path = "../cli-dungeon-database" }
+cli-dungeon-rules = { version = "*", path = "../cli-dungeon-rules" }
+
+clap = { version = "4", features = ["derive"] }
 cli-dungeon-core = { version = "*", path = "../cli-dungeon-core" }
 color-print = "0.3"
 tokio = { version = "1", features = ["full"] }

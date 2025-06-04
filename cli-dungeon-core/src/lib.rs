@@ -1,10 +1,15 @@
 use std::collections::HashSet;
 
+use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::{Character, Dice, roll};
 
-pub async fn play(force: bool) -> Option<Vec<TurnOutcome>> {
-    if roll(&Dice::D4) == 4 || force {
-        return Some(encountor().await);
+pub async fn play(force: bool, character_info: CharacterInfo) -> Option<Vec<TurnOutcome>> {
+    if !cli_dungeon_database::validate_player(&character_info).await {
+        return None;
+    }
+
+    if roll(&Dice::D20) == 4 || force {
+        return Some(encountor(character_info.id).await);
     }
     None
 }
@@ -36,11 +41,13 @@ pub struct Attack {
     pub attacked_name: String,
 }
 
-async fn encountor() -> Vec<TurnOutcome> {
-    let player_id = cli_dungeon_database::create_character("Player", 24, 12, Dice::D8, 2).await;
-    let wolf_id = cli_dungeon_database::create_character("Wolf", 6, 11, Dice::D4, 3).await;
-    let dire_wolf_id =
-        cli_dungeon_database::create_character("Dire wolf", 12, 12, Dice::D4, 3).await;
+async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
+    let wolf_id = cli_dungeon_database::create_character("Wolf", 6, 11, Dice::D4, 3)
+        .await
+        .id;
+    let dire_wolf_id = cli_dungeon_database::create_character("Dire wolf", 12, 12, Dice::D4, 3)
+        .await
+        .id;
 
     let player = FightParticipant {
         id: player_id,
