@@ -1,10 +1,13 @@
 use std::collections::HashSet;
 
 use cli_dungeon_database::CharacterInfo;
-use cli_dungeon_rules::{Character, Dice, roll};
+use cli_dungeon_rules::{Dice, Hit, Hitable, roll};
 
 pub async fn play(force: bool, character_info: CharacterInfo) -> Option<Vec<TurnOutcome>> {
-    if !cli_dungeon_database::validate_player(&character_info).await {
+    if cli_dungeon_database::validate_player(&character_info)
+        .await
+        .is_none_or(|valid| !valid)
+    {
         return None;
     }
 
@@ -26,13 +29,6 @@ pub enum TurnOutcome {
 struct FightParticipant {
     id: i64,
     party_id: i64,
-}
-
-#[derive(Debug, Clone)]
-pub struct Hit {
-    pub damage: i16,
-    pub critical_hit: bool,
-    pub character_name: String,
 }
 
 #[derive(Debug, Clone)]
@@ -64,8 +60,8 @@ async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
 
     let outcome = fight(vec![player, wolf, dire_wolf]).await;
 
-    cli_dungeon_database::delete_character(player_id).await;
     cli_dungeon_database::delete_character(dire_wolf_id).await;
+    cli_dungeon_database::delete_character(wolf_id).await;
 
     outcome
 }
@@ -132,46 +128,5 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                 return outcome_list;
             }
         }
-    }
-}
-
-trait Hitable {
-    fn attacked(&mut self, hit_bonus: &i16, attack_dice: &Dice) -> Option<Hit>;
-    fn is_alive(&self) -> bool;
-}
-
-impl Hitable for Character {
-    fn is_alive(&self) -> bool {
-        self.current_health > 0
-    }
-
-    fn attacked(&mut self, hit_bonus: &i16, attack_dice: &Dice) -> Option<Hit> {
-        let dice_roll = roll(&Dice::D20);
-        let hit = dice_roll + hit_bonus;
-        let critical_hit = dice_roll == 20;
-        let critical_miss = dice_roll == 1;
-
-        if critical_miss {
-            return None;
-        }
-
-        if hit > self.armor_points || critical_hit {
-            let damage = match critical_hit {
-                true => roll(attack_dice) + roll(attack_dice),
-                false => roll(attack_dice),
-            };
-
-            self.current_health -= damage;
-
-            let outcome = Hit {
-                damage,
-                critical_hit,
-                character_name: self.name.clone(),
-            };
-
-            return Some(outcome);
-        }
-
-        None
     }
 }

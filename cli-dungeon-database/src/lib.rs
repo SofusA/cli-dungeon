@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use cli_dungeon_rules::{Character, Dice};
+use cli_dungeon_rules::{Character, Dice, Hitable};
 use sqlx::types::Json;
 
 static POOL: OnceLock<sqlx::Pool<sqlx::Sqlite>> = OnceLock::new();
@@ -112,10 +112,15 @@ pub async fn get_active_character() -> Option<CharacterInfo> {
     result.unwrap()
 }
 
-pub async fn validate_player(character_info: &CharacterInfo) -> bool {
+pub async fn validate_player(character_info: &CharacterInfo) -> Option<bool> {
     let character = get_character_row(character_info.id).await;
+    let secret = character.secret;
 
-    character.secret == character_info.secret
+    if !Character::from(character).is_alive() {
+        return None;
+    }
+
+    Some(secret == character_info.secret)
 }
 
 pub async fn get_character(id: i64) -> Character {
