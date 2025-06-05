@@ -2,6 +2,7 @@ use std::sync::OnceLock;
 
 use cli_dungeon_rules::{Character, Dice, Hitable};
 use sqlx::types::Json;
+use thiserror::Error;
 
 static POOL: OnceLock<sqlx::Pool<sqlx::Sqlite>> = OnceLock::new();
 
@@ -18,7 +19,7 @@ macro_rules! acquire {
 }
 
 #[derive(Debug, sqlx::FromRow)]
-pub struct CharacterRow {
+struct CharacterRow {
     rowid: i64,
     name: String,
     secret: i64,
@@ -97,7 +98,7 @@ pub async fn set_active_character(character: CharacterInfo) {
     .unwrap();
 }
 
-pub async fn get_active_character() -> Option<CharacterInfo> {
+pub async fn get_active_character() -> Result<CharacterInfo, DatabaseError> {
     let mut connection = acquire!();
 
     let result = sqlx::query_as!(
@@ -109,18 +110,26 @@ pub async fn get_active_character() -> Option<CharacterInfo> {
     .fetch_optional(&mut *connection)
     .await;
 
-    result.unwrap()
+    match result.unwrap() {
+        Some(result) => Ok(result),
+        None => Err(DatabaseError::NoActiveCharacter),
+    }
 }
 
-pub async fn validate_player(character_info: &CharacterInfo) -> Option<bool> {
+pub async fn validate_player(character_info: &CharacterInfo) -> Result<bool, DatabaseError> {
     let character = get_character_row(character_info.id).await;
-    let secret = character.secret;
-
-    if !Character::from(character).is_alive() {
-        return None;
+    if character.secret != character_info.secret {
+        return Err(DatabaseError::WrongSecret);
     }
+    Ok(Character::from(character).is_alive())
+}
 
-    Some(secret == character_info.secret)
+#[derive(Error, Debug)]
+pub enum DatabaseError {
+    #[error("Mismatch in character secret. Is this your character?")]
+    WrongSecret,
+    #[error("No active character. Create one with 'cli-dungeon create'")]
+    NoActiveCharacter,
 }
 
 pub async fn get_character(id: i64) -> Character {

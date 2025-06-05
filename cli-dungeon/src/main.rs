@@ -1,3 +1,4 @@
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
 use cli_dungeon_rules::Dice;
@@ -27,7 +28,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
@@ -37,12 +38,9 @@ async fn main() {
             cli_dungeon_database::set_active_character(character_info).await;
         }
         Commands::Play { force } => {
-            let Some(character) = cli_dungeon_database::get_active_character().await else {
-                println!("No character. Create one with 'cli-dungeon create'");
-                return;
-            };
+            let character = cli_dungeon_database::get_active_character().await?;
 
-            if let Some(outcome) = play(force, character).await {
+            if let Some(outcome) = play(force, character).await? {
                 println!("New encounter!");
 
                 for outcome in outcome {
@@ -67,4 +65,6 @@ async fn main() {
             };
         }
     }
+
+    Ok(())
 }

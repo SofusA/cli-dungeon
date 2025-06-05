@@ -4,3 +4,5 @@ members = ["cli-dungeon", "cli-dungeon-core", "cli-dungeon-database", "cli-dunge
 
 [workspace.dependencies]
 rand = "0.9"
+thiserror = "2"
+anyhow = "1"

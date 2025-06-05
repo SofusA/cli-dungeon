@@ -1,20 +1,19 @@
 use std::collections::HashSet;
 
+use anyhow::{Result, bail};
 use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::{Dice, Hit, Hitable, roll};
+use thiserror::Error;
 
-pub async fn play(force: bool, character_info: CharacterInfo) -> Option<Vec<TurnOutcome>> {
-    if cli_dungeon_database::validate_player(&character_info)
-        .await
-        .is_none_or(|valid| !valid)
-    {
-        return None;
-    }
+pub async fn play(force: bool, character_info: CharacterInfo) -> Result<Option<Vec<TurnOutcome>>> {
+    if !cli_dungeon_database::validate_player(&character_info).await? {
+        bail!(GameError::Dead)
+    };
 
     if roll(&Dice::D20) == 4 || force {
-        return Some(encountor(character_info.id).await);
+        return Ok(Some(encountor(character_info.id).await));
     }
-    None
+    Ok(None)
 }
 
 #[derive(Debug, Clone)]
@@ -25,16 +24,22 @@ pub enum TurnOutcome {
     Death(String),
 }
 
+#[derive(Debug, Clone)]
+pub struct Attack {
+    pub attacker_name: String,
+    pub attacked_name: String,
+}
+
 #[derive(Clone, Copy)]
 struct FightParticipant {
     id: i64,
     party_id: i64,
 }
 
-#[derive(Debug, Clone)]
-pub struct Attack {
-    pub attacker_name: String,
-    pub attacked_name: String,
+#[derive(Error, Debug)]
+pub enum GameError {
+    #[error("Character is dead")]
+    Dead,
 }
 
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
