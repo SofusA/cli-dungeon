@@ -224,7 +224,6 @@ dependencies = [
 name = "cli-dungeon-core"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "cli-dungeon-database",
  "cli-dungeon-rules",
  "serde",

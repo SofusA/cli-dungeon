@@ -28,7 +28,7 @@ pub struct Character {
     pub id: i64,
     pub name: String,
     pub player: bool,
-    pub current_health: u16,
+    pub current_health: i16,
     pub base_ability_scores: AbilityScores,
     pub gold: u16,
     pub experience: u16,
@@ -59,10 +59,31 @@ pub enum WeaponType {
 }
 
 impl WeaponType {
+    fn to_name(&self) -> String {
+        serde_json::to_string(self)
+            .unwrap()
+            .strip_prefix("\"")
+            .unwrap()
+            .strip_suffix("\"")
+            .unwrap()
+            .to_string()
+    }
+
+    pub fn from_weapon_str(string: &str) -> Option<Self> {
+        let string = string.to_lowercase();
+        match string.as_str() {
+            "dagger" => Some(WeaponType::Dagger),
+            "shortsword" => Some(WeaponType::Shortsword),
+            "longsword" => Some(WeaponType::Longsword),
+            "shield" => Some(WeaponType::Shield),
+            _ => None,
+        }
+    }
+
     pub fn to_weapon(&self) -> Weapon {
         match self {
             WeaponType::Dagger => Weapon {
-                name: "Dagger".to_string(),
+                name: self.to_name(),
                 cost: 5,
                 primary_ability: AbilityScaling::Dexterity,
                 hit_bonus: 0,
@@ -72,7 +93,7 @@ impl WeaponType {
                 armor_bonus: 0,
             },
             WeaponType::Shortsword => Weapon {
-                name: "Shortsword".to_string(),
+                name: self.to_name(),
                 cost: 50,
                 primary_ability: AbilityScaling::Either,
                 hit_bonus: 0,
@@ -82,7 +103,7 @@ impl WeaponType {
                 armor_bonus: 0,
             },
             WeaponType::Longsword => Weapon {
-                name: "Longsword".to_string(),
+                name: self.to_name(),
                 cost: 50,
                 primary_ability: AbilityScaling::Strength,
                 hit_bonus: 0,
@@ -92,7 +113,7 @@ impl WeaponType {
                 armor_bonus: 0,
             },
             WeaponType::Shield => Weapon {
-                name: "Shield".to_string(),
+                name: self.to_name(),
                 cost: 30,
                 primary_ability: AbilityScaling::Strength,
                 hit_bonus: 0,
@@ -108,7 +129,7 @@ impl WeaponType {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub enum ArmorType {
     Leather,
-    ChainMail,
+    Chainmail,
     Splint,
 }
 
@@ -121,24 +142,44 @@ pub struct Armor {
 }
 
 impl ArmorType {
+    fn to_name(&self) -> String {
+        serde_json::to_string(self)
+            .unwrap()
+            .strip_prefix("\"")
+            .unwrap()
+            .strip_suffix("\"")
+            .unwrap()
+            .to_string()
+    }
+
+    pub fn from_armor_str(string: &str) -> Option<Self> {
+        let string = string.to_lowercase();
+        match string.as_str() {
+            "leather" => Some(ArmorType::Leather),
+            "chainmail" => Some(ArmorType::Chainmail),
+            "splint" => Some(ArmorType::Splint),
+            _ => None,
+        }
+    }
+
     pub fn to_armor(&self) -> Armor {
         match self {
             ArmorType::Leather => Armor {
-                name: serde_json::to_string(self).unwrap(),
+                name: self.to_name(),
                 cost: 30,
                 armor_bonus: 1,
                 max_dexterity_bonus: 6,
                 strength_requirement: Strength(AbilityScore(8)),
             },
-            ArmorType::ChainMail => Armor {
-                name: serde_json::to_string(self).unwrap(),
+            ArmorType::Chainmail => Armor {
+                name: self.to_name(),
                 cost: 150,
                 armor_bonus: 4,
                 max_dexterity_bonus: 4,
                 strength_requirement: Strength(AbilityScore(14)),
             },
             ArmorType::Splint => Armor {
-                name: serde_json::to_string(self).unwrap(),
+                name: self.to_name(),
                 cost: 200,
                 armor_bonus: 7,
                 max_dexterity_bonus: 0,
@@ -181,8 +222,7 @@ impl AbilityScores {
 }
 
 fn ability_score_bonus(ability_score: &AbilityScore) -> i16 {
-    let bonus = (ability_score.0 - 10) / 2;
-    bonus as i16
+    (ability_score.0 as i16 - 10) / 2
 }
 
 pub fn max_health(constitution: &Constitution, level: u16) -> u16 {
@@ -225,6 +265,18 @@ impl Character {
             };
         };
 
+        let mut offhand_attack_dice = self
+            .equipped_offhand
+            .as_ref()
+            .map(|offhand| offhand.to_weapon().attack_dices)
+            .unwrap_or_default();
+
+        let offhand_attack_bonus = &self
+            .equipped_offhand
+            .as_ref()
+            .map(|offhand| offhand.to_weapon().attack_bonus)
+            .unwrap_or(0);
+
         let attack_bonus = match weapon.to_weapon().primary_ability {
             AbilityScaling::Strength => ability_score_bonus(&str.0),
             AbilityScaling::Dexterity => ability_score_bonus(&dex.0),
@@ -234,9 +286,12 @@ impl Character {
             },
         };
 
+        let mut attack_dice = weapon.to_weapon().attack_dices;
+        attack_dice.append(&mut offhand_attack_dice);
+
         AttackStats {
-            attack_dice: weapon.to_weapon().attack_dices,
-            attack_bonus: attack_bonus + weapon.to_weapon().attack_bonus,
+            attack_dice,
+            attack_bonus: attack_bonus + weapon.to_weapon().attack_bonus + *offhand_attack_bonus,
         }
     }
 
@@ -301,7 +356,7 @@ impl Character {
                 false => attack(attack_stats),
             };
 
-            self.current_health -= damage;
+            self.current_health -= damage as i16;
 
             let outcome = Hit {
                 damage,

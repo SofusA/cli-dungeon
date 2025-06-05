@@ -1,16 +1,18 @@
 use std::collections::HashSet;
 
-use anyhow::{Result, bail};
-use cli_dungeon_database::CharacterInfo;
+use cli_dungeon_database::{CharacterInfo, DatabaseError};
 use cli_dungeon_rules::{AbilityScores, Dice, Hit, roll};
 use thiserror::Error;
 
 pub mod character;
 pub mod shop;
 
-pub async fn play(force: bool, character_info: CharacterInfo) -> Result<Option<Vec<TurnOutcome>>> {
+pub async fn play(
+    force: bool,
+    character_info: CharacterInfo,
+) -> Result<Option<Vec<TurnOutcome>>, GameError> {
     if !cli_dungeon_database::validate_player(&character_info).await? {
-        bail!(GameError::Dead)
+        return Err(GameError::Dead);
     };
 
     if roll(&Dice::D20) == 4 || force {
@@ -44,6 +46,9 @@ pub enum GameError {
     #[error("Character is dead")]
     Dead,
 
+    #[error("Ability scores must sum to 10")]
+    AbilitySumError,
+
     #[error("Weapon cannot be wielded in offhand")]
     NotOffHandWeapon,
 
@@ -61,6 +66,9 @@ pub enum GameError {
 
     #[error("Unknown Armor. Spelling error?")]
     UnknownArmor,
+
+    #[error(transparent)]
+    Database(#[from] DatabaseError),
 }
 
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
@@ -164,6 +172,10 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                     if !other_character.is_alive() {
                         outcome_list.push(TurnOutcome::Death(other_character.name));
                         participant_rotation.retain(|character| character.id != other_character.id);
+
+                        // TODO: Split xp
+                        // TODO: Split gold
+                        // TODO: Split loot
                     }
                 }
                 None => outcome_list.push(TurnOutcome::Miss(character.name)),

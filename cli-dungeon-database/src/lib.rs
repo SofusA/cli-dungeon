@@ -45,7 +45,7 @@ impl From<CharacterRow> for Character {
             gold: row.gold as u16,
             experience: row.experience as u16,
             base_ability_scores: row.base_ability_scores.0,
-            current_health: row.current_health as u16,
+            current_health: row.current_health as i16,
             equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
             equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
             equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
@@ -67,9 +67,6 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, 0);
     let secret = rand::random_range(1..=10000);
-    let equipped_weapon = serde_json::to_string(&None::<WeaponType>).unwrap();
-    let equipped_offhand = serde_json::to_string(&None::<WeaponType>).unwrap();
-    let equipped_armor = serde_json::to_string(&None::<ArmorType>).unwrap();
     let weapon_inventory: Vec<WeaponType> = vec![];
     let armor_inventory: Vec<ArmorType> = vec![];
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
@@ -77,19 +74,16 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#,
         secret,
         name,
         true,
-        0,
+        100,
         0,
         base_ability_scores_serialized,
         health,
-        None,
-        None,
-        None,
         weapon_inventory_json,
         armor_inventory_json
     )
@@ -119,9 +113,10 @@ pub async fn create_character(
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, 0);
     let secret = rand::random_range(1..=10000);
-    let equipped_weapon = serde_json::to_string(&equipped_weapon).unwrap();
-    let equipped_offhand = serde_json::to_string(&equipped_offhand).unwrap();
-    let equipped_armor = serde_json::to_string(&equipped_armor).unwrap();
+    let equipped_weapon = equipped_weapon.map(|w| serde_json::to_string(&w).unwrap());
+    let equipped_offhand = equipped_offhand.map(|w| serde_json::to_string(&w).unwrap());
+    let equipped_armor = equipped_armor.map(|a| serde_json::to_string(&a).unwrap());
+
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
 
@@ -215,13 +210,6 @@ pub async fn get_character(id: i64) -> Result<Character, DatabaseError> {
 async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
     let mut connection = acquire!();
 
-    let test = sqlx::query!("select * from characters")
-        .fetch_all(&mut *connection)
-        .await
-        .unwrap();
-
-    println!("{:?}", test);
-
     let result = sqlx::query_as!(
         CharacterRow,
         r#"
@@ -247,14 +235,11 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
 
     match result {
         Ok(row) => Ok(row),
-        Err(err) => {
-            println!("{}", err);
-            Err(DatabaseError::CharacterNotFound)
-        }
+        Err(_) => Err(DatabaseError::CharacterNotFound),
     }
 }
 
-pub async fn set_character_health(id: i64, health: u16) {
+pub async fn set_character_health(id: i64, health: i16) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",

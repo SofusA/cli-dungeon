@@ -12,6 +12,6 @@ pub fn available_in_shop() -> Shop {
             WeaponType::Longsword,
             WeaponType::Shield,
         ],
-        armor: vec![ArmorType::Leather, ArmorType::ChainMail],
+        armor: vec![ArmorType::Leather, ArmorType::Chainmail],
     }
 }

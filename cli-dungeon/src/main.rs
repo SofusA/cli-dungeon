@@ -64,7 +64,7 @@ enum ShopCommands {
     List,
     Buy {
         #[arg(short, long)]
-        buy: String,
+        item: String,
     },
 }
 
@@ -178,14 +178,13 @@ async fn main() -> Result<()> {
                         .join(" ")
                 );
             }
-            ShopCommands::Buy { buy } => {
+            ShopCommands::Buy { item } => {
                 let character_info = cli_dungeon_database::get_active_character().await?;
-                cli_dungeon_core::character::buy(&character_info, buy).await?;
+                cli_dungeon_core::character::buy(&character_info, item).await?;
             }
         },
         Commands::Play { force } => {
             let character = cli_dungeon_database::get_active_character().await?;
-            println!("{}", character.id);
 
             if let Some(outcome) = play(force, character).await? {
                 println!("New encounter!");

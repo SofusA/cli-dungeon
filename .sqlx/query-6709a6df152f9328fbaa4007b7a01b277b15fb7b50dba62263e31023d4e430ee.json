@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        select id, secret from active_character limit 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "secret",
+        "ordinal": 1,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "6709a6df152f9328fbaa4007b7a01b277b15fb7b50dba62263e31023d4e430ee"
+}
