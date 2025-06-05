@@ -1,8 +1,7 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
-use cli_dungeon_rules::AbilityScores;
-use color_print::{cprint, cprintln};
+use color_print::{cformat, cprint, cprintln};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -25,11 +24,47 @@ enum Commands {
         constitution: u16,
     },
 
+    /// Character options
+    Character {
+        #[clap(subcommand)]
+        command: CharacterCommands,
+    },
+
+    /// Shop available items
+    Shop {
+        #[clap(subcommand)]
+        command: ShopCommands,
+    },
+
     // Play the game
     Play {
         #[arg(short, long, default_value_t = false)]
         /// Force a battle
         force: bool,
+    },
+}
+
+#[derive(Subcommand)]
+enum CharacterCommands {
+    Stats,
+    Equip {
+        #[arg(short, long)]
+        main_hand: Option<String>,
+
+        #[arg(short, long)]
+        off_hand: Option<String>,
+
+        #[arg(short, long)]
+        armor: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ShopCommands {
+    List,
+    Buy {
+        #[arg(short, long)]
+        buy: String,
     },
 }
 
@@ -44,17 +79,113 @@ async fn main() -> Result<()> {
             dexterity,
             constitution,
         } => {
-            if strength + dexterity + constitution != 10 {
-                bail!("Ability scores must sum to 10");
-            }
-            let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
-
-            let character_info =
-                cli_dungeon_database::create_character(&name, ability_scores).await;
+            let character_info = cli_dungeon_core::character::create_character(
+                name,
+                strength,
+                dexterity,
+                constitution,
+            )
+            .await?;
             cli_dungeon_database::set_active_character(character_info).await;
         }
+        Commands::Character { command } => match command {
+            CharacterCommands::Stats => {
+                let character_info = cli_dungeon_database::get_active_character().await?;
+                let character = cli_dungeon_core::character::get_character(&character_info).await?;
+
+                cprintln!("<blue>{}</>", character.name);
+                cprintln!("<yellow>Gold: {}</>", character.gold);
+                cprintln!(
+                    "Weapon: {}",
+                    character
+                        .equipped_weapon
+                        .map(|weapon| weapon.to_weapon().name)
+                        .unwrap_or("Unequiped".to_string())
+                );
+                cprintln!(
+                    "Offhand: {}",
+                    character
+                        .equipped_offhand
+                        .map(|weapon| weapon.to_weapon().name)
+                        .unwrap_or("Unequiped".to_string())
+                );
+                cprintln!(
+                    "Armor: {}",
+                    character
+                        .equipped_armor
+                        .map(|armor| armor.to_armor().name)
+                        .unwrap_or("Unequiped".to_string())
+                );
+                cprintln!(
+                    "Inventory: {} {}",
+                    character
+                        .weapon_inventory
+                        .iter()
+                        .map(|weapon| weapon.to_weapon().name)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    character
+                        .armor_inventory
+                        .iter()
+                        .map(|armor| armor.to_armor().name)
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+            }
+            CharacterCommands::Equip {
+                main_hand,
+                off_hand,
+                armor,
+            } => {
+                let character_info = cli_dungeon_database::get_active_character().await?;
+                if let Some(main_hand) = main_hand {
+                    cli_dungeon_core::character::equip_main_hand(&character_info, main_hand)
+                        .await?;
+                }
+                if let Some(off_hand) = off_hand {
+                    cli_dungeon_core::character::equip_offhand(&character_info, off_hand).await?;
+                }
+                if let Some(armor) = armor {
+                    cli_dungeon_core::character::equip_armor(&character_info, armor).await?;
+                }
+            }
+        },
+        Commands::Shop { command } => match command {
+            ShopCommands::List => {
+                let shop = cli_dungeon_core::shop::available_in_shop();
+
+                cprintln!("<blue>Available in shop</>");
+                cprintln!(
+                    "Weapons: {}",
+                    shop.weapons
+                        .iter()
+                        .map(|weapon| {
+                            let weapon = weapon.to_weapon();
+                            cformat!("<blue>{}: </><yellow>{}</>", weapon.name, weapon.cost)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+                cprintln!(
+                    "Armor: {}",
+                    shop.armor
+                        .iter()
+                        .map(|armor| {
+                            let armor = armor.to_armor();
+                            cformat!("<blue>{}: </><yellow>{}</>", armor.name, armor.cost)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
+            }
+            ShopCommands::Buy { buy } => {
+                let character_info = cli_dungeon_database::get_active_character().await?;
+                cli_dungeon_core::character::buy(&character_info, buy).await?;
+            }
+        },
         Commands::Play { force } => {
             let character = cli_dungeon_database::get_active_character().await?;
+            println!("{}", character.id);
 
             if let Some(outcome) = play(force, character).await? {
                 println!("New encounter!");

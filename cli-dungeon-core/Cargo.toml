@@ -9,3 +9,5 @@ cli-dungeon-database = { version = "*", path = "../cli-dungeon-database" }
 
 thiserror = { workspace = true }
 anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

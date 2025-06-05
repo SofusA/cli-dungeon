@@ -227,6 +227,8 @@ dependencies = [
  "anyhow",
  "cli-dungeon-database",
  "cli-dungeon-rules",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
@@ -249,6 +251,7 @@ version = "0.1.0"
 dependencies = [
  "rand 0.9.1",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

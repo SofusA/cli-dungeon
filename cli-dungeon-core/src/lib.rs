@@ -5,6 +5,9 @@ use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::{AbilityScores, Dice, Hit, roll};
 use thiserror::Error;
 
+pub mod character;
+pub mod shop;
+
 pub async fn play(force: bool, character_info: CharacterInfo) -> Result<Option<Vec<TurnOutcome>>> {
     if !cli_dungeon_database::validate_player(&character_info).await? {
         bail!(GameError::Dead)
@@ -40,16 +43,53 @@ struct FightParticipant {
 pub enum GameError {
     #[error("Character is dead")]
     Dead,
+
+    #[error("Weapon cannot be wielded in offhand")]
+    NotOffHandWeapon,
+
+    #[error("Your character is not strong enough")]
+    InsufficientStrength,
+
+    #[error("Insufficient gold")]
+    InsufficientGold,
+
+    #[error("Unknown Item. Spelling error?")]
+    UnknownItem,
+
+    #[error("Unknown weapon. Spelling error?")]
+    UnknownWeapon,
+
+    #[error("Unknown Armor. Spelling error?")]
+    UnknownArmor,
 }
 
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
-    let wolf_id = cli_dungeon_database::create_character("Wolf", AbilityScores::new(8, 12, 8))
-        .await
-        .id;
-    let dire_wolf_id =
-        cli_dungeon_database::create_character("Dire wolf", AbilityScores::new(8, 14, 10))
-            .await
-            .id;
+    let wolf_id = cli_dungeon_database::create_character(
+        "Wolf",
+        AbilityScores::new(8, 12, 8),
+        5,
+        0,
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+    )
+    .await
+    .id;
+    let dire_wolf_id = cli_dungeon_database::create_character(
+        "Dire wolf",
+        AbilityScores::new(8, 14, 10),
+        5,
+        0,
+        None,
+        None,
+        None,
+        vec![],
+        vec![],
+    )
+    .await
+    .id;
 
     let player = FightParticipant {
         id: player_id,
@@ -90,7 +130,9 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
 
     loop {
         for character_inititiative in participant_rotation.clone() {
-            let character = cli_dungeon_database::get_character(character_inititiative.id).await;
+            let character = cli_dungeon_database::get_character(character_inititiative.id)
+                .await
+                .unwrap();
 
             let other_character_participant = participant_rotation
                 .iter()
@@ -99,7 +141,9 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                 .unwrap();
 
             let mut other_character =
-                cli_dungeon_database::get_character(other_character_participant.id).await;
+                cli_dungeon_database::get_character(other_character_participant.id)
+                    .await
+                    .unwrap();
 
             let outcome =
                 other_character.attacked(&character.hit_bonus(), &character.attack_stats());

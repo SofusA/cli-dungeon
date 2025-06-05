@@ -59,7 +59,7 @@ pub enum WeaponType {
 }
 
 impl WeaponType {
-    fn to_weapon(&self) -> Weapon {
+    pub fn to_weapon(&self) -> Weapon {
         match self {
             WeaponType::Dagger => Weapon {
                 name: "Dagger".to_string(),
@@ -121,24 +121,24 @@ pub struct Armor {
 }
 
 impl ArmorType {
-    fn to_armor(&self) -> Armor {
+    pub fn to_armor(&self) -> Armor {
         match self {
             ArmorType::Leather => Armor {
-                name: "Leather".to_string(),
+                name: serde_json::to_string(self).unwrap(),
                 cost: 30,
                 armor_bonus: 1,
                 max_dexterity_bonus: 6,
                 strength_requirement: Strength(AbilityScore(8)),
             },
             ArmorType::ChainMail => Armor {
-                name: "Chain mail".to_string(),
+                name: serde_json::to_string(self).unwrap(),
                 cost: 150,
                 armor_bonus: 4,
                 max_dexterity_bonus: 4,
                 strength_requirement: Strength(AbilityScore(14)),
             },
             ArmorType::Splint => Armor {
-                name: "Split armor".to_string(),
+                name: serde_json::to_string(self).unwrap(),
                 cost: 200,
                 armor_bonus: 7,
                 max_dexterity_bonus: 0,
@@ -155,9 +155,9 @@ pub enum AbilityScaling {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct AbilityScore(u16);
+pub struct AbilityScore(pub u16);
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct Strength(AbilityScore);
+pub struct Strength(pub AbilityScore);
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Dexterity(AbilityScore);
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -196,47 +196,6 @@ fn attack(attack_stats: &AttackStats) -> u16 {
 }
 
 impl Character {
-    pub fn new_player(id: i64, name: &str, ability_scores: AbilityScores) -> Self {
-        Self {
-            id,
-            name: name.to_owned(),
-            player: true,
-            current_health: max_health(&ability_scores.constitution, 0),
-            base_ability_scores: ability_scores,
-            equipped_weapon: None,
-            equipped_offhand: None,
-            equipped_armor: None,
-            experience: 0,
-            gold: 150,
-            weapon_inventory: vec![],
-            armor_inventory: vec![],
-        }
-    }
-
-    pub fn new(
-        id: i64,
-        name: &str,
-        ability_scores: AbilityScores,
-        gold: u16,
-        weapon_inventory: Vec<WeaponType>,
-        armor_inventory: Vec<ArmorType>,
-    ) -> Self {
-        Self {
-            id,
-            name: name.to_owned(),
-            player: false,
-            current_health: max_health(&ability_scores.constitution, 0),
-            base_ability_scores: ability_scores,
-            equipped_weapon: None,
-            equipped_offhand: None,
-            equipped_armor: None,
-            experience: 0,
-            gold,
-            weapon_inventory,
-            armor_inventory,
-        }
-    }
-
     pub fn ability_scores(&self) -> &AbilityScores {
         &self.base_ability_scores
     }
@@ -254,16 +213,25 @@ impl Character {
     pub fn attack_stats(&self) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
-        let attack_bonus = match dex.0.0 < str.0.0 {
-            true => ability_score_bonus(&str.0),
-            false => ability_score_bonus(&dex.0),
-        };
 
         let Some(weapon) = &self.equipped_weapon else {
+            let attack_bonus = match dex.0.0 < str.0.0 {
+                true => ability_score_bonus(&str.0),
+                false => ability_score_bonus(&dex.0),
+            };
             return AttackStats {
                 attack_dice: vec![Dice::D4],
                 attack_bonus,
             };
+        };
+
+        let attack_bonus = match weapon.to_weapon().primary_ability {
+            AbilityScaling::Strength => ability_score_bonus(&str.0),
+            AbilityScaling::Dexterity => ability_score_bonus(&dex.0),
+            AbilityScaling::Either => match dex.0.0 < str.0.0 {
+                true => ability_score_bonus(&str.0),
+                false => ability_score_bonus(&dex.0),
+            },
         };
 
         AttackStats {
@@ -277,6 +245,21 @@ impl Character {
     }
 
     pub fn armor_points(&self) -> u16 {
+        let armor = self.equipped_armor.as_ref().map(|armor| armor.to_armor());
+        let base_armor = 10;
+        let dexterity_ability_score_bonus = ability_score_bonus(&self.ability_scores().dexterity.0);
+
+        let dexterity_bonus = match armor.map(|armor| armor.max_dexterity_bonus) {
+            Some(max_bonus) => {
+                if dexterity_ability_score_bonus > max_bonus as i16 {
+                    max_bonus as i16
+                } else {
+                    dexterity_ability_score_bonus
+                }
+            }
+            None => dexterity_ability_score_bonus,
+        };
+
         let armor_bonus = self
             .equipped_armor
             .as_ref()
@@ -293,9 +276,12 @@ impl Character {
             .map(|weapon| weapon.to_weapon().armor_bonus)
             .unwrap_or(0);
 
-        let base_armor = 10 + ability_score_bonus(&self.ability_scores().dexterity.0);
+        let armor = base_armor
+            + armor_bonus
+            + dexterity_bonus
+            + main_hand_bonus as i16
+            + off_hand_bonus as i16;
 
-        let armor = base_armor + armor_bonus + main_hand_bonus as i16 + off_hand_bonus as i16;
         armor as u16
     }
 
