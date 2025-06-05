@@ -1,6 +1,7 @@
 use std::sync::OnceLock;
 
-use cli_dungeon_rules::{AbilityScores, Character, max_health};
+use cli_dungeon_rules::{AbilityScores, Character, WeaponType, max_health};
+use serde_json::to_string;
 use sqlx::types::Json;
 use thiserror::Error;
 
@@ -25,6 +26,7 @@ struct CharacterRow {
     secret: i64,
     base_ability_scores: Json<AbilityScores>,
     current_health: i64,
+    equipped_weapon: Option<Json<WeaponType>>,
 }
 
 impl From<CharacterRow> for Character {
@@ -34,6 +36,7 @@ impl From<CharacterRow> for Character {
             name: row.name,
             base_ability_scores: row.base_ability_scores.0,
             current_health: row.current_health as i16,
+            equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
         }
     }
 }
@@ -127,7 +130,7 @@ pub async fn get_character(id: i64) -> Character {
 async fn get_character_row(id: i64) -> CharacterRow {
     let mut connection = acquire!();
 
-    let result = sqlx::query_as!(CharacterRow, "select rowid, name, secret, base_ability_scores as \"base_ability_scores: Json<AbilityScores>\", current_health from characters where rowid = $1", id)
+    let result = sqlx::query_as!(CharacterRow, "select rowid, name, secret, base_ability_scores as \"base_ability_scores: Json<AbilityScores>\", equipped_weapon as \"equipped_weapon: Json<WeaponType>\", current_health from characters where rowid = $1", id)
         .fetch_one(&mut *connection)
         .await;
 
@@ -140,6 +143,20 @@ pub async fn set_character_health(id: i64, health: i16) {
         "update characters set current_health = $2 where rowid = $1",
         id,
         health
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn equip_weapon(character_id: i16, weapon: WeaponType) {
+    let mut connection = acquire!();
+    let weapon_json = to_string(&weapon).unwrap();
+    let result = sqlx::query!(
+        "update characters set equipped_weapon = $2 where rowid = $1",
+        character_id,
+        weapon_json
     )
     .execute(&mut *connection)
     .await;

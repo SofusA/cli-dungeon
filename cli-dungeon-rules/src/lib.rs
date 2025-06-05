@@ -20,7 +20,7 @@ pub enum Dice {
 }
 
 pub struct AttackStats {
-    pub attack_dice: Dice,
+    pub attack_dice: Vec<Dice>,
     pub attack_bonus: i16,
 }
 
@@ -29,6 +29,48 @@ pub struct Character {
     pub name: String,
     pub current_health: i16,
     pub base_ability_scores: AbilityScores,
+    pub equipped_weapon: Option<WeaponType>,
+}
+
+pub struct Weapon {
+    pub name: String,
+    pub primary_ability: Ability,
+    pub hit_bonus: i16,
+    pub attack_dices: Vec<Dice>,
+    pub attack_bonus: i16,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub enum WeaponType {
+    Shortsword,
+    Longsword,
+}
+
+impl WeaponType {
+    fn to_weapon(&self) -> Weapon {
+        match self {
+            WeaponType::Shortsword => Weapon {
+                name: "Shortsword".to_string(),
+                primary_ability: Ability::Dexterity,
+                hit_bonus: 0,
+                attack_dices: vec![Dice::D6],
+                attack_bonus: 1,
+            },
+            WeaponType::Longsword => Weapon {
+                name: "Longsword".to_string(),
+                primary_ability: Ability::Strength,
+                hit_bonus: 0,
+                attack_dices: vec![Dice::D8],
+                attack_bonus: 0,
+            },
+        }
+    }
+}
+
+pub enum Ability {
+    Strength,
+    Dexterity,
+    Constitution,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -70,7 +112,7 @@ pub fn max_health(constitution: &Constitution, level: i16) -> i16 {
 }
 
 fn attack(attack_stats: &AttackStats) -> i16 {
-    roll(&attack_stats.attack_dice) + attack_stats.attack_bonus
+    attack_stats.attack_dice.iter().map(roll).sum::<i16>() + attack_stats.attack_bonus
 }
 
 impl Character {
@@ -80,6 +122,7 @@ impl Character {
             name: name.to_owned(),
             current_health: max_health(&ability_scores.constitution, 0),
             base_ability_scores: ability_scores,
+            equipped_weapon: None,
         }
     }
 
@@ -97,22 +140,28 @@ impl Character {
         }
     }
 
-    fn attack_dice(&self) -> Dice {
-        Dice::D4
-    }
+    // pub fn equip_weapon(&mut self, weapon: WeaponType) {
+    //     self.equipped_weapon = Some(weapon);
+    // }
 
     pub fn attack_stats(&self) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
 
-        let attack_bonus = match dex.0.0 < str.0.0 {
-            true => ability_score_bonus(&str.0),
-            false => ability_score_bonus(&dex.0),
+        let Some(weapon) = &self.equipped_weapon else {
+            let attack_bonus = match dex.0.0 < str.0.0 {
+                true => ability_score_bonus(&str.0),
+                false => ability_score_bonus(&dex.0),
+            };
+            return AttackStats {
+                attack_dice: vec![Dice::D4],
+                attack_bonus,
+            };
         };
 
         AttackStats {
-            attack_dice: self.attack_dice(),
-            attack_bonus,
+            attack_dice: weapon.to_weapon().attack_dices,
+            attack_bonus: weapon.to_weapon().attack_bonus,
         }
     }
 
