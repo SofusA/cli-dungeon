@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use cli_dungeon_rules::{AbilityScores, Character, WeaponType, max_health};
+use cli_dungeon_rules::{AbilityScores, ArmorType, Character, WeaponType, max_health};
 use serde_json::to_string;
 use sqlx::types::Json;
 use thiserror::Error;
@@ -22,11 +22,18 @@ macro_rules! acquire {
 #[derive(Debug, sqlx::FromRow)]
 struct CharacterRow {
     rowid: i64,
-    name: String,
     secret: i64,
+    name: String,
+    player: bool,
     base_ability_scores: Json<AbilityScores>,
     current_health: i64,
+    gold: i64,
+    experience: i64,
     equipped_weapon: Option<Json<WeaponType>>,
+    equipped_offhand: Option<Json<WeaponType>>,
+    equipped_armor: Option<Json<ArmorType>>,
+    weapon_inventory: Json<Vec<WeaponType>>,
+    armor_inventory: Json<Vec<ArmorType>>,
 }
 
 impl From<CharacterRow> for Character {
@@ -34,9 +41,16 @@ impl From<CharacterRow> for Character {
         Character {
             id: row.rowid,
             name: row.name,
+            player: row.player,
+            gold: row.gold as u16,
+            experience: row.experience as u16,
             base_ability_scores: row.base_ability_scores.0,
-            current_health: row.current_health as i16,
+            current_health: row.current_health as u16,
             equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
+            equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
+            equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
+            weapon_inventory: row.weapon_inventory.0,
+            armor_inventory: row.armor_inventory.0,
         }
     }
 }
@@ -130,14 +144,33 @@ pub async fn get_character(id: i64) -> Character {
 async fn get_character_row(id: i64) -> CharacterRow {
     let mut connection = acquire!();
 
-    let result = sqlx::query_as!(CharacterRow, "select rowid, name, secret, base_ability_scores as \"base_ability_scores: Json<AbilityScores>\", equipped_weapon as \"equipped_weapon: Json<WeaponType>\", current_health from characters where rowid = $1", id)
-        .fetch_one(&mut *connection)
-        .await;
+    let result = sqlx::query_as!(
+        CharacterRow,
+        r#"
+        select
+        rowid,
+        name,
+        secret,
+        player,
+        gold,
+        experience,
+        base_ability_scores as "base_ability_scores: Json<AbilityScores>",
+        current_health,
+        equipped_weapon as "equipped_weapon: Json<WeaponType>",
+        equipped_offhand as "equipped_offhand: Json<WeaponType>",
+        equipped_armor as "equipped_armor: Json<ArmorType>",
+        weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
+        armor_inventory as "armor_inventory: Json<Vec<ArmorType>>"
+        from characters where rowid = $1"#,
+        id
+    )
+    .fetch_one(&mut *connection)
+    .await;
 
     result.unwrap()
 }
 
-pub async fn set_character_health(id: i64, health: i16) {
+pub async fn set_character_health(id: i64, health: u16) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",

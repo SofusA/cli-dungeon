@@ -18,11 +18,11 @@ enum Commands {
         #[arg(short, long)]
         name: String,
         #[arg(short, long)]
-        strength: i16,
+        strength: u16,
         #[arg(short, long)]
-        dexterity: i16,
+        dexterity: u16,
         #[arg(short, long)]
-        constitution: i16,
+        constitution: u16,
     },
 
     // Play the game
