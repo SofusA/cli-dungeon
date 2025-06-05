@@ -1,6 +1,6 @@
 use std::sync::OnceLock;
 
-use cli_dungeon_rules::{Character, Dice, Hitable};
+use cli_dungeon_rules::{AbilityScores, Character, max_health};
 use sqlx::types::Json;
 use thiserror::Error;
 
@@ -23,11 +23,8 @@ struct CharacterRow {
     rowid: i64,
     name: String,
     secret: i64,
-    attack_dice: Json<Dice>,
-    hit_bonus: i64,
-    max_health: i64,
+    base_ability_scores: Json<AbilityScores>,
     current_health: i64,
-    armor_points: i64,
 }
 
 impl From<CharacterRow> for Character {
@@ -35,11 +32,8 @@ impl From<CharacterRow> for Character {
         Character {
             id: row.rowid,
             name: row.name,
-            attack_dice: row.attack_dice.0,
-            hit_bonus: row.hit_bonus as i16,
-            max_health: row.max_health as i16,
+            base_ability_scores: row.base_ability_scores.0,
             current_health: row.current_health as i16,
-            armor_points: row.armor_points as i16,
         }
     }
 }
@@ -50,32 +44,26 @@ pub struct CharacterInfo {
     pub secret: i64,
 }
 
-pub async fn create_character(
-    name: &str,
-    health: i16,
-    armor_points: i16,
-    attack_dice: Dice,
-    hit_bonus: i16,
-) -> CharacterInfo {
+pub async fn create_character(name: &str, ability_scores: AbilityScores) -> CharacterInfo {
     let mut connection = acquire!();
 
-    let dice = serde_json::to_string(&attack_dice).unwrap();
+    let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
+    let health = max_health(&ability_scores.constitution, 0);
     let secret = rand::random_range(1..=10000);
 
     let result = sqlx::query!(
         r#"
-            insert into characters (name, secret, attack_dice, hit_bonus, max_health, current_health, armor_points)
-            values ( $1, $2, $3, $4, $5, $5, $6)
+            insert into characters (name, secret, base_ability_scores, current_health)
+            values ( $1, $2, $3, $4)
         "#,
         name,
         secret,
-        dice,
-        hit_bonus,
+        base_ability_scores_serialized,
         health,
-        armor_points
     )
     .execute(&mut *connection)
-    .await.unwrap();
+    .await
+    .unwrap();
 
     CharacterInfo {
         id: result.last_insert_rowid(),
@@ -139,7 +127,7 @@ pub async fn get_character(id: i64) -> Character {
 async fn get_character_row(id: i64) -> CharacterRow {
     let mut connection = acquire!();
 
-    let result = sqlx::query_as!(CharacterRow, "select rowid, name, secret, attack_dice as \"attack_dice: Json<Dice>\", hit_bonus, max_health, current_health, armor_points from characters where rowid = $1", id)
+    let result = sqlx::query_as!(CharacterRow, "select rowid, name, secret, base_ability_scores as \"base_ability_scores: Json<AbilityScores>\", current_health from characters where rowid = $1", id)
         .fetch_one(&mut *connection)
         .await;
 

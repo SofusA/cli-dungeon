@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::{Result, bail};
 use cli_dungeon_database::CharacterInfo;
-use cli_dungeon_rules::{Dice, Hit, Hitable, roll};
+use cli_dungeon_rules::{AbilityScores, Dice, Hit, roll};
 use thiserror::Error;
 
 pub async fn play(force: bool, character_info: CharacterInfo) -> Result<Option<Vec<TurnOutcome>>> {
@@ -43,12 +43,13 @@ pub enum GameError {
 }
 
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
-    let wolf_id = cli_dungeon_database::create_character("Wolf", 6, 11, Dice::D4, 3)
+    let wolf_id = cli_dungeon_database::create_character("Wolf", AbilityScores::new(8, 12, 8))
         .await
         .id;
-    let dire_wolf_id = cli_dungeon_database::create_character("Dire wolf", 12, 12, Dice::D4, 3)
-        .await
-        .id;
+    let dire_wolf_id =
+        cli_dungeon_database::create_character("Dire wolf", AbilityScores::new(8, 14, 10))
+            .await
+            .id;
 
     let player = FightParticipant {
         id: player_id,
@@ -100,7 +101,8 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
             let mut other_character =
                 cli_dungeon_database::get_character(other_character_participant.id).await;
 
-            let outcome = other_character.attacked(&character.hit_bonus, &character.attack_dice);
+            let outcome =
+                other_character.attacked(&character.hit_bonus(), &character.attack_stats());
             outcome_list.push(TurnOutcome::Attack(Attack {
                 attacker_name: character.name.clone(),
                 attacked_name: other_character.name.clone(),

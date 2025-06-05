@@ -1,7 +1,7 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
-use cli_dungeon_rules::Dice;
+use cli_dungeon_rules::AbilityScores;
 use color_print::{cprint, cprintln};
 
 #[derive(Parser)]
@@ -17,6 +17,12 @@ enum Commands {
     CreateCharacter {
         #[arg(short, long)]
         name: String,
+        #[arg(short, long)]
+        strength: i16,
+        #[arg(short, long)]
+        dexterity: i16,
+        #[arg(short, long)]
+        constitution: i16,
     },
 
     // Play the game
@@ -32,9 +38,19 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     match args.command {
-        Commands::CreateCharacter { name } => {
+        Commands::CreateCharacter {
+            name,
+            strength,
+            dexterity,
+            constitution,
+        } => {
+            if strength + dexterity + constitution != 10 {
+                bail!("Ability scores must sum to 10");
+            }
+            let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
+
             let character_info =
-                cli_dungeon_database::create_character(&name, 24, 12, Dice::D8, 2).await;
+                cli_dungeon_database::create_character(&name, ability_scores).await;
             cli_dungeon_database::set_active_character(character_info).await;
         }
         Commands::Play { force } => {
