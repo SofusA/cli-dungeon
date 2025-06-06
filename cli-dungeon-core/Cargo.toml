@@ -10,3 +10,5 @@ cli-dungeon-database = { version = "*", path = "../cli-dungeon-database" }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+futures = "0.3"
+rand = { workspace = true }

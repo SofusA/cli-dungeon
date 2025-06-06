@@ -1,7 +1,12 @@
 use std::collections::HashSet;
 
 use cli_dungeon_database::{CharacterInfo, DatabaseError};
-use cli_dungeon_rules::{AbilityScores, Dice, Hit, roll};
+use cli_dungeon_rules::{
+    AbilityScores, AbilityType, ArmorType, ClassType, Dice, Experience, Gold, Hit, LevelUpChoice,
+    WeaponType, experience_gain, roll,
+};
+use futures::future::join_all;
+use rand::seq::{IndexedRandom, IteratorRandom};
 use thiserror::Error;
 
 pub mod character;
@@ -58,14 +63,20 @@ pub enum GameError {
     #[error("Insufficient gold")]
     InsufficientGold,
 
+    #[error("Insufficient experience for level up")]
+    InsufficientExperience,
+
     #[error("Unknown Item. Spelling error?")]
     UnknownItem,
 
     #[error("Unknown weapon. Spelling error?")]
     UnknownWeapon,
 
-    #[error("Unknown Armor. Spelling error?")]
+    #[error("Unknown armor. Spelling error?")]
     UnknownArmor,
+
+    #[error("Unknown class. Spelling error?")]
+    UnknownClass,
 
     #[error(transparent)]
     Database(#[from] DatabaseError),
@@ -74,27 +85,41 @@ pub enum GameError {
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
     let wolf_id = cli_dungeon_database::create_character(
         "Wolf",
-        AbilityScores::new(8, 12, 8),
-        5,
-        0,
+        AbilityScores::new(8, 9, 9),
+        Gold(5),
+        Experience(0),
         None,
         None,
         None,
         vec![],
         vec![],
+        vec![LevelUpChoice {
+            ability_increment: AbilityType::Dexterity,
+            class: ClassType::Monster,
+        }],
     )
     .await
     .id;
     let dire_wolf_id = cli_dungeon_database::create_character(
         "Dire wolf",
-        AbilityScores::new(8, 14, 10),
-        5,
-        0,
+        AbilityScores::new(8, 9, 9),
+        Gold(5),
+        Experience(0),
         None,
         None,
         None,
         vec![],
         vec![],
+        vec![
+            LevelUpChoice {
+                ability_increment: AbilityType::Dexterity,
+                class: ClassType::Monster,
+            },
+            LevelUpChoice {
+                ability_increment: AbilityType::Constitution,
+                class: ClassType::Monster,
+            },
+        ],
     )
     .await
     .id;
@@ -123,6 +148,8 @@ async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
 async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
     let mut outcome_list: Vec<TurnOutcome> = vec![];
 
+    let mut dead: Vec<i64> = vec![];
+
     let mut rotation: Vec<_> = participants
         .into_iter()
         .map(|participant| (participant, roll(&Dice::D20)))
@@ -145,7 +172,8 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
             let other_character_participant = participant_rotation
                 .iter()
                 .filter(|character| character.party_id != character_inititiative.party_id)
-                .find(|character| character.id != character_inititiative.id)
+                .filter(|character| character.id != character_inititiative.id)
+                .choose(&mut rand::rng())
                 .unwrap();
 
             let mut other_character =
@@ -153,8 +181,7 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                     .await
                     .unwrap();
 
-            let outcome =
-                other_character.attacked(&character.hit_bonus(), &character.attack_stats());
+            let outcome = other_character.attacked(&character.attack_stats());
             outcome_list.push(TurnOutcome::Attack(Attack {
                 attacker_name: character.name.clone(),
                 attacked_name: other_character.name.clone(),
@@ -172,10 +199,31 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                     if !other_character.is_alive() {
                         outcome_list.push(TurnOutcome::Death(other_character.name));
                         participant_rotation.retain(|character| character.id != other_character.id);
+                        dead.push(other_character.id);
 
-                        // TODO: Split xp
-                        // TODO: Split gold
-                        // TODO: Split loot
+                        let same_party: Vec<_> = participant_rotation
+                            .iter()
+                            .filter(|character| {
+                                character.party_id == character_inititiative.party_id
+                            })
+                            .collect();
+
+                        let experience_gained = Experience(
+                            *experience_gain(other_character.level_up_choices)
+                                / same_party.len() as u32,
+                        );
+
+                        for character_info in same_party {
+                            let character = cli_dungeon_database::get_character(character_info.id)
+                                .await
+                                .unwrap();
+                            let new_xp = character.experience + experience_gained;
+                            cli_dungeon_database::set_character_experience(
+                                character_info.id,
+                                new_xp,
+                            )
+                            .await;
+                        }
                     }
                 }
                 None => outcome_list.push(TurnOutcome::Miss(character.name)),
@@ -188,6 +236,50 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
             };
 
             if parties_left == 1 {
+                let dead_characters: Vec<_> = join_all(
+                    dead.into_iter()
+                        .map(async |id| cli_dungeon_database::get_character(id).await.unwrap()),
+                )
+                .await;
+
+                let total_gold: u16 = dead_characters
+                    .iter()
+                    .map(|character| *character.gold)
+                    .sum();
+                let split_gold = total_gold / participant_rotation.len() as u16;
+
+                let weapon_loot: Vec<WeaponType> = dead_characters
+                    .iter()
+                    .flat_map(|character| character.weapon_inventory.clone())
+                    .collect();
+                let armor_loot: Vec<ArmorType> = dead_characters
+                    .iter()
+                    .flat_map(|character| character.armor_inventory.clone())
+                    .collect();
+
+                for character_id in participant_rotation.iter().map(|rotation| rotation.id) {
+                    let character = cli_dungeon_database::get_character(character_id)
+                        .await
+                        .unwrap();
+                    let new_gold = character.gold + Gold(split_gold);
+                    cli_dungeon_database::set_character_gold(character_id, new_gold).await;
+                }
+
+                for weapon in weapon_loot {
+                    let recipient = participant_rotation.choose(&mut rand::rng()).unwrap();
+
+                    cli_dungeon_database::add_weapon_to_inventory(recipient.id, weapon)
+                        .await
+                        .unwrap();
+                }
+                for armor in armor_loot {
+                    let recipient = participant_rotation.choose(&mut rand::rng()).unwrap();
+
+                    cli_dungeon_database::add_armor_to_inventory(recipient.id, armor)
+                        .await
+                        .unwrap();
+                }
+
                 return outcome_list;
             }
         }

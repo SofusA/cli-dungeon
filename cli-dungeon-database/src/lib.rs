@@ -1,6 +1,9 @@
 use std::sync::OnceLock;
 
-use cli_dungeon_rules::{AbilityScores, ArmorType, Character, WeaponType, max_health};
+use cli_dungeon_rules::{
+    AbilityScores, ArmorType, Character, Experience, Gold, Health, Level, LevelUpChoice,
+    WeaponType, max_health,
+};
 use serde_json::to_string;
 use sqlx::types::Json;
 use thiserror::Error;
@@ -34,6 +37,7 @@ struct CharacterRow {
     equipped_armor: Option<Json<ArmorType>>,
     weapon_inventory: Json<Vec<WeaponType>>,
     armor_inventory: Json<Vec<ArmorType>>,
+    level_up_choices: Json<Vec<LevelUpChoice>>,
 }
 
 impl From<CharacterRow> for Character {
@@ -42,15 +46,16 @@ impl From<CharacterRow> for Character {
             id: row.rowid,
             name: row.name,
             player: row.player,
-            gold: row.gold as u16,
-            experience: row.experience as u16,
+            gold: Gold(row.gold as u16),
+            experience: Experience(row.experience as u32),
             base_ability_scores: row.base_ability_scores.0,
-            current_health: row.current_health as i16,
+            current_health: Health(row.current_health as i16),
             equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
             equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
             equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
             weapon_inventory: row.weapon_inventory.0,
             armor_inventory: row.armor_inventory.0,
+            level_up_choices: row.level_up_choices.0,
         }
     }
 }
@@ -65,17 +70,19 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let mut connection = acquire!();
 
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
-    let health = max_health(&ability_scores.constitution, 0);
+    let health = max_health(&ability_scores.constitution, Level(0));
     let secret = rand::random_range(1..=10000);
     let weapon_inventory: Vec<WeaponType> = vec![];
     let armor_inventory: Vec<ArmorType> = vec![];
+    let levels: Vec<LevelUpChoice> = vec![];
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
+    let levels_json = serde_json::to_string(&levels).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, level_up_choices)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         "#,
         secret,
         name,
@@ -83,9 +90,10 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
         100,
         0,
         base_ability_scores_serialized,
-        health,
+        *health,
         weapon_inventory_json,
-        armor_inventory_json
+        armor_inventory_json,
+        levels_json
     )
     .execute(&mut *connection)
     .await
@@ -101,17 +109,18 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
 pub async fn create_character(
     name: &str,
     ability_scores: AbilityScores,
-    gold: u16,
-    experience: u16,
+    gold: Gold,
+    experience: Experience,
     equipped_weapon: Option<WeaponType>,
     equipped_offhand: Option<WeaponType>,
     equipped_armor: Option<ArmorType>,
     weapon_inventory: Vec<WeaponType>,
     armor_inventory: Vec<ArmorType>,
+    levels: Vec<LevelUpChoice>,
 ) -> CharacterInfo {
     let mut connection = acquire!();
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
-    let health = max_health(&ability_scores.constitution, 0);
+    let health = max_health(&ability_scores.constitution, Level(0));
     let secret = rand::random_range(1..=10000);
     let equipped_weapon = equipped_weapon.map(|w| serde_json::to_string(&w).unwrap());
     let equipped_offhand = equipped_offhand.map(|w| serde_json::to_string(&w).unwrap());
@@ -119,24 +128,26 @@ pub async fn create_character(
 
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
+    let levels_json = serde_json::to_string(&levels).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         "#,
         secret,
         name,
         false,
-        gold,
-        experience,
+        *gold,
+        *experience,
         base_ability_scores_serialized,
-        health,
+        *health,
         equipped_weapon,
         equipped_offhand,
         equipped_armor,
         weapon_inventory_json,
-        armor_inventory_json
+        armor_inventory_json,
+        levels_json
     )
     .execute(&mut *connection)
     .await
@@ -226,7 +237,8 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
         equipped_offhand as "equipped_offhand: Json<WeaponType>",
         equipped_armor as "equipped_armor: Json<ArmorType>",
         weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
-        armor_inventory as "armor_inventory: Json<Vec<ArmorType>>"
+        armor_inventory as "armor_inventory: Json<Vec<ArmorType>>",
+        level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>"
         from characters where rowid = $1"#,
         id
     )
@@ -239,12 +251,12 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
     }
 }
 
-pub async fn set_character_health(id: i64, health: i16) {
+pub async fn set_character_health(id: i64, health: Health) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",
         id,
-        health
+        *health
     )
     .execute(&mut *connection)
     .await;
@@ -252,13 +264,55 @@ pub async fn set_character_health(id: i64, health: i16) {
     result.unwrap();
 }
 
-pub async fn set_character_gold(id: i64, gold: u16) {
+pub async fn set_character_gold(id: i64, gold: Gold) {
     let mut connection = acquire!();
-    let result = sqlx::query!("update characters set gold= $2 where rowid = $1", id, gold)
-        .execute(&mut *connection)
-        .await;
+    let result = sqlx::query!(
+        "update characters set gold = $2 where rowid = $1",
+        id,
+        *gold
+    )
+    .execute(&mut *connection)
+    .await;
 
     result.unwrap();
+}
+
+pub async fn set_character_experience(id: i64, experience: Experience) {
+    let mut connection = acquire!();
+
+    let result = sqlx::query!(
+        "update characters set experience = $2 where rowid = $1",
+        id,
+        *experience
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn add_level_up_choice(
+    character_id: i64,
+    choice: LevelUpChoice,
+) -> Result<(), DatabaseError> {
+    let character = get_character(character_id).await?;
+    let mut choices = character.level_up_choices;
+    choices.push(choice);
+
+    let mut connection = acquire!();
+
+    let inventory_json = to_string(&choices).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set level_up_choices = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+    Ok(())
 }
 
 pub async fn add_weapon_to_inventory(

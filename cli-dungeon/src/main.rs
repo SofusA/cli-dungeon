@@ -1,6 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
+use cli_dungeon_rules::ClassType;
 use color_print::{cformat, cprint, cprintln};
 
 #[derive(Parser)]
@@ -46,7 +47,7 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum CharacterCommands {
-    Stats,
+    Status,
     Equip {
         #[arg(short, long)]
         main_hand: Option<String>,
@@ -56,6 +57,25 @@ enum CharacterCommands {
 
         #[arg(short, long)]
         armor: Option<String>,
+    },
+    Rest,
+    LevelUp {
+        #[clap(subcommand)]
+        command: LevelUpCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum LevelUpCommands {
+    List,
+    Level {
+        /// Class to level up
+        #[arg(short, long)]
+        class: String,
+
+        /// Ability score to increment
+        #[arg(short, long)]
+        ability_increment: String,
     },
 }
 
@@ -89,32 +109,64 @@ async fn main() -> Result<()> {
             cli_dungeon_database::set_active_character(character_info).await;
         }
         Commands::Character { command } => match command {
-            CharacterCommands::Stats => {
+            CharacterCommands::Rest => {
+                let character_info = cli_dungeon_database::get_active_character().await?;
+                cli_dungeon_core::character::rest(&character_info).await?;
+            }
+            CharacterCommands::LevelUp { command } => match command {
+                LevelUpCommands::List => {
+                    cprintln!(
+                        "<cyan>{}: General fighting class</>",
+                        ClassType::Fighter.to_name()
+                    );
+                }
+                LevelUpCommands::Level {
+                    class,
+                    ability_increment,
+                } => {
+                    let character_info = cli_dungeon_database::get_active_character().await?;
+                    cli_dungeon_core::character::levelup(&character_info, class, ability_increment)
+                        .await?;
+                }
+            },
+            CharacterCommands::Status => {
                 let character_info = cli_dungeon_database::get_active_character().await?;
                 let character = cli_dungeon_core::character::get_character(&character_info).await?;
 
-                cprintln!("<blue>{}</>", character.name);
+                cprintln!("<red>Level: {}</>", character.level());
+                cprintln!("<blue>Name: {}</>", character.name);
+                if character.level() < character.experience_level() {
+                    cprintln!("<red>Can level up!</>");
+                }
                 cprintln!("<yellow>Gold: {}</>", character.gold);
+                cprintln!("<yellow>Current health: {}</>", character.current_health);
+                cprintln!("Armor points: {}", character.armor_points());
+                cprintln!("Strength: {}", **character.ability_scores().strength);
+                cprintln!("Dexterity: {}", **character.ability_scores().dexterity);
+                cprintln!(
+                    "Constitution: {}",
+                    **character.ability_scores().constitution
+                );
                 cprintln!(
                     "Weapon: {}",
                     character
                         .equipped_weapon
                         .map(|weapon| weapon.to_weapon().name)
-                        .unwrap_or("Unequiped".to_string())
+                        .unwrap_or("Unequipped".to_string())
                 );
                 cprintln!(
                     "Offhand: {}",
                     character
                         .equipped_offhand
                         .map(|weapon| weapon.to_weapon().name)
-                        .unwrap_or("Unequiped".to_string())
+                        .unwrap_or("Unequipped".to_string())
                 );
                 cprintln!(
                     "Armor: {}",
                     character
                         .equipped_armor
                         .map(|armor| armor.to_armor().name)
-                        .unwrap_or("Unequiped".to_string())
+                        .unwrap_or("Unequipped".to_string())
                 );
                 cprintln!(
                     "Inventory: {} {}",

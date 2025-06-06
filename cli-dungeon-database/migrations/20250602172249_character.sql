@@ -10,7 +10,8 @@ CREATE TABLE characters (
     equipped_offhand TEXT,
     equipped_armor TEXT,
     weapon_inventory TEXT NOT NULL,
-    armor_inventory TEXT NOT NULL
+    armor_inventory TEXT NOT NULL,
+    level_up_choices TEXT NOT NULL
 );
 
 CREATE TABLE active_character (
