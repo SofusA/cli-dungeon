@@ -41,6 +41,15 @@ pub struct AttackStats {
     pub hit_bonus: AbilityScoreBonus,
 }
 
+#[derive(Default)]
+pub enum Status {
+    #[default]
+    Idle,
+    Resting,
+    Questing,
+    Fighting(i64),
+}
+
 pub struct Character {
     pub id: i64,
     pub name: String,
@@ -55,6 +64,8 @@ pub struct Character {
     pub weapon_inventory: Vec<WeaponType>,
     pub armor_inventory: Vec<ArmorType>,
     pub level_up_choices: Vec<LevelUpChoice>,
+    pub status: Status,
+    pub party: i64,
 }
 
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {

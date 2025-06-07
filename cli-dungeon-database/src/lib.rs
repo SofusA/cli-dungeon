@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use cli_dungeon_rules::{
-    Character,
+    Character, Status,
     abilities::AbilityScores,
     armor::ArmorType,
     classes::LevelUpChoice,
@@ -44,10 +44,35 @@ struct CharacterRow {
     weapon_inventory: Json<Vec<WeaponType>>,
     armor_inventory: Json<Vec<ArmorType>>,
     level_up_choices: Json<Vec<LevelUpChoice>>,
+    status: Json<DbStatus>,
+    encounter_id: Option<i64>,
+    party_id: i64,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+enum DbStatus {
+    Idle,
+    Resting,
+    Questing,
+}
+
+impl From<DbStatus> for Status {
+    fn from(value: DbStatus) -> Self {
+        match value {
+            DbStatus::Idle => Self::Idle,
+            DbStatus::Resting => Self::Resting,
+            DbStatus::Questing => Self::Questing,
+        }
+    }
 }
 
 impl From<CharacterRow> for Character {
     fn from(row: CharacterRow) -> Self {
+        let status = match row.encounter_id {
+            Some(encounter) => Status::Fighting(encounter),
+            None => row.status.0.into(),
+        };
+
         Character {
             id: row.rowid,
             name: row.name,
@@ -62,6 +87,8 @@ impl From<CharacterRow> for Character {
             weapon_inventory: row.weapon_inventory.0,
             armor_inventory: row.armor_inventory.0,
             level_up_choices: row.level_up_choices.0,
+            status,
+            party: row.party_id,
         }
     }
 }
@@ -75,6 +102,8 @@ pub struct CharacterInfo {
 pub async fn create_player_character(name: &str, ability_scores: AbilityScores) -> CharacterInfo {
     let mut connection = acquire!();
 
+    let party_id = create_party().await;
+
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, Level::new(0));
     let secret = rand::random_range(1..=10000);
@@ -84,11 +113,12 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
     let levels_json = serde_json::to_string(&levels).unwrap();
+    let status_json = serde_json::to_string(&DbStatus::Idle).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, level_up_choices)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, level_up_choices, status, party_id)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         "#,
         secret,
         name,
@@ -99,7 +129,9 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
         *health,
         weapon_inventory_json,
         armor_inventory_json,
-        levels_json
+        levels_json,
+        status_json,
+        party_id
     )
     .execute(&mut *connection)
     .await
@@ -111,7 +143,43 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     }
 }
 
-pub async fn create_monster(monster: MonsterType) -> CharacterInfo {
+pub async fn create_encounter() -> i64 {
+    let mut connection = acquire!();
+
+    let result = sqlx::query!(
+        r#"
+            UPDATE encounter_counter SET value = value + 1;
+            SELECT value FROM encounter_counter;
+        "#,
+    )
+    .fetch_one(&mut *connection)
+    .await
+    .unwrap();
+
+    result.value.unwrap()
+}
+
+pub async fn create_party() -> i64 {
+    let mut connection = acquire!();
+
+    let result = sqlx::query!(
+        r#"
+            UPDATE party_counter SET value = value + 1;
+            SELECT value FROM party_counter;
+        "#,
+    )
+    .fetch_one(&mut *connection)
+    .await
+    .unwrap();
+
+    result.value.unwrap()
+}
+
+pub async fn create_monster(
+    monster: MonsterType,
+    encounter_id: i64,
+    party_id: i64,
+) -> CharacterInfo {
     let monster = monster.to_monster();
 
     let mut connection = acquire!();
@@ -135,11 +203,12 @@ pub async fn create_monster(monster: MonsterType) -> CharacterInfo {
     let weapon_inventory_json = serde_json::to_string(&monster.weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&monster.armor_inventory).unwrap();
     let levels_json = serde_json::to_string(&monster.levels).unwrap();
+    let status_json = serde_json::to_string(&DbStatus::Questing).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices, status, encounter_id, party_id)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         "#,
         secret,
         monster.name,
@@ -153,7 +222,10 @@ pub async fn create_monster(monster: MonsterType) -> CharacterInfo {
         equipped_armor,
         weapon_inventory_json,
         armor_inventory_json,
-        levels_json
+        levels_json,
+        status_json,
+        encounter_id,
+        party_id
     )
     .execute(&mut *connection)
     .await
@@ -244,7 +316,10 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
         equipped_armor as "equipped_armor: Json<ArmorType>",
         weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
         armor_inventory as "armor_inventory: Json<Vec<ArmorType>>",
-        level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>"
+        level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>",
+        encounter_id,
+        party_id,
+        status as "status: Json<DbStatus>"
         from characters where rowid = $1"#,
         id
     )
@@ -451,16 +526,4 @@ async fn init() {
         .expect("migration failed");
 
     POOL.set(pool).expect("error setting static pool");
-
-    let mut connection = POOL.get().unwrap().acquire().await.unwrap();
-    let result = sqlx::query!(
-        "insert or ignore into active_character (ROWID, id, secret) values ($1, $2, $3)",
-        1,
-        0,
-        0
-    )
-    .execute(&mut *connection)
-    .await;
-
-    result.unwrap();
 }

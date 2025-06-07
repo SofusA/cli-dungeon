@@ -26,7 +26,7 @@ pub async fn play(
     };
 
     if roll(&Dice::D20) == 4 || force {
-        return Ok(Some(encountor(character_info.id).await));
+        return Ok(Some(encounter(character_info.id).await));
     }
     Ok(None)
 }
@@ -87,14 +87,19 @@ pub enum GameError {
     Database(#[from] DatabaseError),
 }
 
-async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
-    let wolf_id = cli_dungeon_database::create_monster(MonsterType::Wolf)
-        .await
-        .id;
+async fn encounter(player_id: i64) -> Vec<TurnOutcome> {
+    let encounter_id = cli_dungeon_database::create_encounter().await;
+    let enemy_party_id = cli_dungeon_database::create_party().await;
 
-    let dire_wolf_id = cli_dungeon_database::create_monster(MonsterType::DireWolf)
-        .await
-        .id;
+    let wolf_id =
+        cli_dungeon_database::create_monster(MonsterType::Wolf, encounter_id, enemy_party_id)
+            .await
+            .id;
+
+    let dire_wolf_id =
+        cli_dungeon_database::create_monster(MonsterType::DireWolf, encounter_id, enemy_party_id)
+            .await
+            .id;
 
     let player = FightParticipant {
         id: player_id,

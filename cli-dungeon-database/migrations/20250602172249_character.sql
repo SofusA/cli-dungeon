@@ -11,10 +11,27 @@ CREATE TABLE characters (
     equipped_armor TEXT,
     weapon_inventory TEXT NOT NULL,
     armor_inventory TEXT NOT NULL,
-    level_up_choices TEXT NOT NULL
+    level_up_choices TEXT NOT NULL,
+    party_id INTEGER NOT NULL,
+    encounter_id INTEGER,
+    status TEXT NOT NULL
 );
 
 CREATE TABLE active_character (
     id INTEGER NOT NULL,
     secret INTEGER NOT NULL
 );
+
+CREATE TABLE encounter_counter (
+    value INTEGER
+);
+
+CREATE TABLE party_counter (
+    value INTEGER
+);
+
+
+INSERT INTO active_character (id, secret) VALUES (0, 0);
+INSERT INTO encounter_counter (value) VALUES (0);
+INSERT INTO party_counter (value) VALUES (0);
+
