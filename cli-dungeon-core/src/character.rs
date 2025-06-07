@@ -7,6 +7,7 @@ use cli_dungeon_rules::{
     types::Gold,
     weapons::WeaponType,
 };
+use sanitizer::StringSanitizer;
 
 use crate::GameError;
 
@@ -16,12 +17,17 @@ pub async fn create_character(
     dexterity: u16,
     constitution: u16,
 ) -> Result<CharacterInfo, GameError> {
+    let mut instance = StringSanitizer::from(name.as_str());
+    instance.alphanumeric();
+    let sanitized_name = instance.get();
+
     if strength + dexterity + constitution != 10 {
         return Err(GameError::AbilitySumError);
     }
     let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
 
-    let character_info = cli_dungeon_database::create_player_character(&name, ability_scores).await;
+    let character_info =
+        cli_dungeon_database::create_player_character(&sanitized_name, ability_scores).await;
     Ok(character_info)
 }
 
