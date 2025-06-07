@@ -1,4 +1,4 @@
-use derive_more::{Add, Deref};
+use crate::types::{Constitution, Dexterity, Strength};
 
 pub enum AbilityScaling {
     Strength,
@@ -35,68 +35,6 @@ impl AbilityType {
     }
 }
 
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Add,
-    Clone,
-    Copy,
-)]
-pub struct AbilityScore(pub u16);
-
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Add,
-    Clone,
-    Copy,
-)]
-pub struct Strength(pub AbilityScore);
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Add,
-    Clone,
-    Copy,
-)]
-pub struct Dexterity(pub AbilityScore);
-
-#[derive(
-    Debug,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    Add,
-    Clone,
-    Copy,
-)]
-pub struct Constitution(pub AbilityScore);
-
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, Deref, Add, PartialEq, Eq)]
-pub struct AbilityScoreBonus(pub i16);
-
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct AbilityScores {
     pub strength: Strength,
@@ -107,15 +45,9 @@ pub struct AbilityScores {
 impl AbilityScores {
     pub fn new(strength: u16, dexterity: u16, constitution: u16) -> Self {
         Self {
-            strength: Strength(AbilityScore(strength)),
-            dexterity: Dexterity(AbilityScore(dexterity)),
-            constitution: Constitution(AbilityScore(constitution)),
+            strength: Strength::new(strength),
+            dexterity: Dexterity::new(dexterity),
+            constitution: Constitution::new(constitution),
         }
-    }
-}
-
-impl AbilityScore {
-    pub fn ability_score_bonus(&self) -> AbilityScoreBonus {
-        AbilityScoreBonus((self.0 as i16 - 10) / 2)
     }
 }

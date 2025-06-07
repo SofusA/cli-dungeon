@@ -157,7 +157,7 @@ async fn buy_weapon(character_info: &CharacterInfo, weapon: WeaponType) -> Resul
     let character = cli_dungeon_database::get_character(character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
-    if new_gold < Gold(0) {
+    if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 
@@ -176,7 +176,7 @@ async fn buy_armor(character_info: &CharacterInfo, armor: ArmorType) -> Result<(
     let character = cli_dungeon_database::get_character(character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
-    if new_gold < Gold(0) {
+    if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 

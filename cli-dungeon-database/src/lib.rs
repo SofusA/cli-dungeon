@@ -51,10 +51,10 @@ impl From<CharacterRow> for Character {
             id: row.rowid,
             name: row.name,
             player: row.player,
-            gold: Gold(row.gold as u16),
-            experience: Experience(row.experience as u32),
+            gold: Gold::new(row.gold as u16),
+            experience: Experience::new(row.experience as u32),
             base_ability_scores: row.base_ability_scores.0,
-            current_health: HealthPoints(row.current_health as i16),
+            current_health: HealthPoints::new(row.current_health as i16),
             equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
             equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
             equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
@@ -75,7 +75,7 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let mut connection = acquire!();
 
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
-    let health = max_health(&ability_scores.constitution, Level(0));
+    let health = max_health(&ability_scores.constitution, Level::new(0));
     let secret = rand::random_range(1..=10000);
     let weapon_inventory: Vec<WeaponType> = vec![];
     let armor_inventory: Vec<ArmorType> = vec![];
@@ -125,7 +125,7 @@ pub async fn create_character(
 ) -> CharacterInfo {
     let mut connection = acquire!();
     let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
-    let health = max_health(&ability_scores.constitution, Level(0));
+    let health = max_health(&ability_scores.constitution, Level::new(0));
     let secret = rand::random_range(1..=10000);
     let equipped_weapon = equipped_weapon.map(|w| serde_json::to_string(&w).unwrap());
     let equipped_offhand = equipped_offhand.map(|w| serde_json::to_string(&w).unwrap());

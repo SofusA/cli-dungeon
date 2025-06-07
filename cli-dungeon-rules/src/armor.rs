@@ -1,9 +1,4 @@
-use derive_more::{Add, Deref, Display};
-
-use crate::{
-    abilities::{AbilityScore, AbilityScoreBonus, Strength},
-    types::Gold,
-};
+use crate::types::{AbilityScoreBonus, ArmorPoints, Gold, Strength};
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub enum ArmorType {
@@ -45,34 +40,25 @@ impl ArmorType {
         match self {
             ArmorType::Leather => Armor {
                 name: self.to_name(),
-                cost: Gold(30),
-                armor_bonus: ArmorPoints(1),
-                max_dexterity_bonus: AbilityScoreBonus(6),
-                strength_requirement: Strength(AbilityScore(8)),
+                cost: Gold::new(30),
+                armor_bonus: ArmorPoints::new(1),
+                max_dexterity_bonus: AbilityScoreBonus::new(6),
+                strength_requirement: Strength::new(8),
             },
             ArmorType::Chainmail => Armor {
                 name: self.to_name(),
-                cost: Gold(150),
-                armor_bonus: ArmorPoints(4),
-                max_dexterity_bonus: AbilityScoreBonus(4),
-                strength_requirement: Strength(AbilityScore(14)),
+                cost: Gold::new(150),
+                armor_bonus: ArmorPoints::new(4),
+                max_dexterity_bonus: AbilityScoreBonus::new(4),
+                strength_requirement: Strength::new(14),
             },
             ArmorType::Splint => Armor {
                 name: self.to_name(),
-                cost: Gold(200),
-                armor_bonus: ArmorPoints(7),
-                max_dexterity_bonus: AbilityScoreBonus(0),
-                strength_requirement: Strength(AbilityScore(16)),
+                cost: Gold::new(200),
+                armor_bonus: ArmorPoints::new(7),
+                max_dexterity_bonus: AbilityScoreBonus::new(0),
+                strength_requirement: Strength::new(16),
             },
         }
-    }
-}
-
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, Deref, Add, Display)]
-pub struct ArmorPoints(pub i16);
-
-impl From<AbilityScoreBonus> for ArmorPoints {
-    fn from(value: AbilityScoreBonus) -> Self {
-        Self(*value)
     }
 }

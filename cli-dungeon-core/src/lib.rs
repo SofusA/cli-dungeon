@@ -91,8 +91,8 @@ async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
     let wolf_id = cli_dungeon_database::create_character(
         "Wolf",
         AbilityScores::new(8, 9, 9),
-        Gold(5),
-        Experience(0),
+        Gold::new(5),
+        Experience::new(0),
         None,
         None,
         None,
@@ -108,8 +108,8 @@ async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
     let dire_wolf_id = cli_dungeon_database::create_character(
         "Dire wolf",
         AbilityScores::new(8, 9, 9),
-        Gold(5),
-        Experience(0),
+        Gold::new(5),
+        Experience::new(0),
         None,
         None,
         None,
@@ -213,7 +213,7 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                             })
                             .collect();
 
-                        let experience_gained = Experience(
+                        let experience_gained = Experience::new(
                             *experience_gain(other_character.level_up_choices)
                                 / same_party.len() as u32,
                         );
@@ -266,7 +266,7 @@ async fn fight(participants: Vec<FightParticipant>) -> Vec<TurnOutcome> {
                     let character = cli_dungeon_database::get_character(character_id)
                         .await
                         .unwrap();
-                    let new_gold = character.gold + Gold(split_gold);
+                    let new_gold = character.gold + Gold::new(split_gold);
                     cli_dungeon_database::set_character_gold(character_id, new_gold).await;
                 }
 

@@ -1,4 +1,7 @@
-use crate::{AbilityScaling, Dice, abilities::AbilityScoreBonus, armor::ArmorPoints, types::Gold};
+use crate::{
+    AbilityScaling, Dice,
+    types::{AbilityScoreBonus, ArmorPoints, Gold},
+};
 
 pub struct Weapon {
     pub name: String,
@@ -45,43 +48,43 @@ impl WeaponType {
         match self {
             WeaponType::Dagger => Weapon {
                 name: self.to_name(),
-                cost: Gold(5),
+                cost: Gold::new(5),
                 primary_ability: AbilityScaling::Dexterity,
-                hit_bonus: AbilityScoreBonus(0),
+                hit_bonus: AbilityScoreBonus::new(0),
                 attack_dices: vec![Dice::D4],
-                attack_bonus: AbilityScoreBonus(0),
+                attack_bonus: AbilityScoreBonus::new(0),
                 allow_offhand: true,
-                armor_bonus: ArmorPoints(0),
+                armor_bonus: ArmorPoints::new(0),
             },
             WeaponType::Shortsword => Weapon {
                 name: self.to_name(),
-                cost: Gold(50),
+                cost: Gold::new(50),
                 primary_ability: AbilityScaling::Either,
-                hit_bonus: AbilityScoreBonus(0),
+                hit_bonus: AbilityScoreBonus::new(0),
                 attack_dices: vec![Dice::D6],
-                attack_bonus: AbilityScoreBonus(0),
+                attack_bonus: AbilityScoreBonus::new(0),
                 allow_offhand: true,
-                armor_bonus: ArmorPoints(0),
+                armor_bonus: ArmorPoints::new(0),
             },
             WeaponType::Longsword => Weapon {
                 name: self.to_name(),
-                cost: Gold(50),
+                cost: Gold::new(50),
                 primary_ability: AbilityScaling::Strength,
-                hit_bonus: AbilityScoreBonus(0),
+                hit_bonus: AbilityScoreBonus::new(0),
                 attack_dices: vec![Dice::D8],
-                attack_bonus: AbilityScoreBonus(0),
+                attack_bonus: AbilityScoreBonus::new(0),
                 allow_offhand: false,
-                armor_bonus: ArmorPoints(0),
+                armor_bonus: ArmorPoints::new(0),
             },
             WeaponType::Shield => Weapon {
                 name: self.to_name(),
-                cost: Gold(30),
+                cost: Gold::new(30),
                 primary_ability: AbilityScaling::Strength,
-                hit_bonus: AbilityScoreBonus(0),
+                hit_bonus: AbilityScoreBonus::new(0),
                 attack_dices: vec![],
-                attack_bonus: AbilityScoreBonus(0),
+                attack_bonus: AbilityScoreBonus::new(0),
                 allow_offhand: true,
-                armor_bonus: ArmorPoints(2),
+                armor_bonus: ArmorPoints::new(2),
             },
         }
     }

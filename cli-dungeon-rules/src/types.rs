@@ -1,51 +1,83 @@
 use derive_more::{Add, AddAssign, Deref, Display, Sub, SubAssign};
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize, Deref, Add)]
-pub struct Experience(pub u32);
+macro_rules! wrapped_type {
+    ($name:ident, $inner:ty) => {
+        #[derive(
+            Debug,
+            Clone,
+            Copy,
+            Display,
+            Deserialize,
+            Serialize,
+            Deref,
+            Add,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Sub,
+            AddAssign,
+            SubAssign,
+        )]
+        pub struct $name($inner);
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Display,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    Add,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-)]
-pub struct Level(pub u16);
-#[derive(
-    Debug,
-    Display,
-    Clone,
-    Copy,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    Add,
-    Sub,
-    AddAssign,
-    SubAssign,
-)]
-pub struct HealthPoints(pub i16);
+        impl $name {
+            pub fn new(value: $inner) -> Self {
+                Self(value)
+            }
+        }
+    };
+}
 
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    Display,
-    serde::Deserialize,
-    serde::Serialize,
-    Deref,
-    Add,
-    Sub,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-)]
-pub struct Gold(pub u16);
+macro_rules! ability_wrapped_type {
+    ($name:ident) => {
+        #[derive(
+            Debug,
+            Clone,
+            Copy,
+            Display,
+            Deserialize,
+            Serialize,
+            Deref,
+            Add,
+            PartialEq,
+            Eq,
+            PartialOrd,
+            Ord,
+            Sub,
+            AddAssign,
+            SubAssign,
+        )]
+        pub struct $name(AbilityScore);
+
+        impl $name {
+            pub fn new(value: u16) -> Self {
+                Self(AbilityScore::new(value))
+            }
+        }
+    };
+}
+
+wrapped_type!(Experience, u32);
+wrapped_type!(Level, u16);
+wrapped_type!(HealthPoints, i16);
+wrapped_type!(Gold, u16);
+wrapped_type!(ArmorPoints, i16);
+wrapped_type!(AbilityScore, u16);
+wrapped_type!(AbilityScoreBonus, i16);
+ability_wrapped_type!(Strength);
+ability_wrapped_type!(Dexterity);
+ability_wrapped_type!(Constitution);
+
+impl AbilityScore {
+    pub fn ability_score_bonus(&self) -> AbilityScoreBonus {
+        AbilityScoreBonus((self.0 as i16 - 10) / 2)
+    }
+}
+
+impl From<AbilityScoreBonus> for ArmorPoints {
+    fn from(value: AbilityScoreBonus) -> Self {
+        Self(*value)
+    }
+}
