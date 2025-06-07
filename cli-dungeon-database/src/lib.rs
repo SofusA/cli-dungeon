@@ -1,8 +1,13 @@
 use std::sync::OnceLock;
 
 use cli_dungeon_rules::{
-    AbilityScores, ArmorType, Character, Experience, Gold, Health, Level, LevelUpChoice,
-    WeaponType, max_health,
+    Character,
+    abilities::AbilityScores,
+    armor::ArmorType,
+    classes::LevelUpChoice,
+    max_health,
+    types::{Experience, Gold, HealthPoints, Level},
+    weapons::WeaponType,
 };
 use serde_json::to_string;
 use sqlx::types::Json;
@@ -49,7 +54,7 @@ impl From<CharacterRow> for Character {
             gold: Gold(row.gold as u16),
             experience: Experience(row.experience as u32),
             base_ability_scores: row.base_ability_scores.0,
-            current_health: Health(row.current_health as i16),
+            current_health: HealthPoints(row.current_health as i16),
             equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
             equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
             equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
@@ -251,7 +256,7 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
     }
 }
 
-pub async fn set_character_health(id: i64, health: Health) {
+pub async fn set_character_health(id: i64, health: HealthPoints) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",

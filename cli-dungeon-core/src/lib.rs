@@ -2,8 +2,13 @@ use std::collections::HashSet;
 
 use cli_dungeon_database::{CharacterInfo, DatabaseError};
 use cli_dungeon_rules::{
-    AbilityScores, AbilityType, ArmorType, ClassType, Dice, Experience, Gold, Hit, LevelUpChoice,
-    WeaponType, experience_gain, roll,
+    Dice, Hit,
+    abilities::{AbilityScores, AbilityType},
+    armor::ArmorType,
+    classes::{ClassType, LevelUpChoice},
+    experience_gain, roll,
+    types::{Experience, Gold},
+    weapons::WeaponType,
 };
 use futures::future::join_all;
 use rand::seq::{IndexedRandom, IteratorRandom};

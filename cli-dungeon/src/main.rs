@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
-use cli_dungeon_rules::ClassType;
+use cli_dungeon_rules::classes::ClassType;
 use color_print::{cformat, cprint, cprintln};
 
 #[derive(Parser)]

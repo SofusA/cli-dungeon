@@ -1,4 +1,4 @@
-use cli_dungeon_rules::{ArmorType, WeaponType};
+use cli_dungeon_rules::{armor::ArmorType, weapons::WeaponType};
 
 pub struct Shop {
     pub weapons: Vec<WeaponType>,

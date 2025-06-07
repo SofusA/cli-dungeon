@@ -1,6 +1,11 @@
 use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::{
-    AbilityScores, AbilityType, ArmorType, Character, ClassType, Gold, LevelUpChoice, WeaponType,
+    Character,
+    abilities::{AbilityScores, AbilityType},
+    armor::ArmorType,
+    classes::{ClassType, LevelUpChoice},
+    types::Gold,
+    weapons::WeaponType,
 };
 
 use crate::GameError;
