@@ -14,7 +14,9 @@ pub struct Weapon {
     pub armor_bonus: ArmorPoints,
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum WeaponType {
     Dagger,
     Shortsword,

@@ -6,6 +6,7 @@ use cli_dungeon_rules::{
     armor::ArmorType,
     classes::LevelUpChoice,
     max_health,
+    monsters::MonsterType,
     types::{Experience, Gold, HealthPoints, Level},
     weapons::WeaponType,
 };
@@ -68,7 +69,7 @@ impl From<CharacterRow> for Character {
 #[derive(Debug, sqlx::FromRow)]
 pub struct CharacterInfo {
     pub id: i64,
-    pub secret: i64,
+    secret: i64,
 }
 
 pub async fn create_player_character(name: &str, ability_scores: AbilityScores) -> CharacterInfo {
@@ -110,30 +111,30 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub async fn create_character(
-    name: &str,
-    ability_scores: AbilityScores,
-    gold: Gold,
-    experience: Experience,
-    equipped_weapon: Option<WeaponType>,
-    equipped_offhand: Option<WeaponType>,
-    equipped_armor: Option<ArmorType>,
-    weapon_inventory: Vec<WeaponType>,
-    armor_inventory: Vec<ArmorType>,
-    levels: Vec<LevelUpChoice>,
-) -> CharacterInfo {
-    let mut connection = acquire!();
-    let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
-    let health = max_health(&ability_scores.constitution, Level::new(0));
-    let secret = rand::random_range(1..=10000);
-    let equipped_weapon = equipped_weapon.map(|w| serde_json::to_string(&w).unwrap());
-    let equipped_offhand = equipped_offhand.map(|w| serde_json::to_string(&w).unwrap());
-    let equipped_armor = equipped_armor.map(|a| serde_json::to_string(&a).unwrap());
+pub async fn create_monster(monster: MonsterType) -> CharacterInfo {
+    let monster = monster.to_monster();
 
-    let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
-    let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
-    let levels_json = serde_json::to_string(&levels).unwrap();
+    let mut connection = acquire!();
+    let base_ability_scores_serialized =
+        serde_json::to_string(&monster.base_ability_scores).unwrap();
+    let health = max_health(
+        &monster.base_ability_scores.constitution,
+        Level::new(monster.levels.len() as u16),
+    );
+    let secret = rand::random_range(1..=10000);
+    let equipped_weapon = monster
+        .equipped_weapon
+        .map(|w| serde_json::to_string(&w).unwrap());
+    let equipped_offhand = monster
+        .equipped_offhand
+        .map(|w| serde_json::to_string(&w).unwrap());
+    let equipped_armor = monster
+        .equipped_armor
+        .map(|a| serde_json::to_string(&a).unwrap());
+
+    let weapon_inventory_json = serde_json::to_string(&monster.weapon_inventory).unwrap();
+    let armor_inventory_json = serde_json::to_string(&monster.armor_inventory).unwrap();
+    let levels_json = serde_json::to_string(&monster.levels).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -141,10 +142,10 @@ pub async fn create_character(
             values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         "#,
         secret,
-        name,
+        monster.name,
         false,
-        *gold,
-        *experience,
+        *monster.gold,
+        *monster.experience,
         base_ability_scores_serialized,
         *health,
         equipped_weapon,

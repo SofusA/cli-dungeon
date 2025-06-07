@@ -10,6 +10,7 @@ use weapons::WeaponType;
 pub mod abilities;
 pub mod armor;
 pub mod classes;
+pub mod monsters;
 pub mod types;
 pub mod weapons;
 

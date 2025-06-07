@@ -1,6 +1,8 @@
 use crate::types::{AbilityScoreBonus, ArmorPoints, Gold, Strength};
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum ArmorType {
     Leather,
     Chainmail,

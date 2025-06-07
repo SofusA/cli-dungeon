@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use cli_dungeon_database::{CharacterInfo, DatabaseError};
 use cli_dungeon_rules::{
     Dice, Hit,
-    abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
-    classes::{ClassType, LevelUpChoice},
-    experience_gain, roll,
+    experience_gain,
+    monsters::MonsterType,
+    roll,
     types::{Experience, Gold},
     weapons::WeaponType,
 };
@@ -88,46 +88,13 @@ pub enum GameError {
 }
 
 async fn encountor(player_id: i64) -> Vec<TurnOutcome> {
-    let wolf_id = cli_dungeon_database::create_character(
-        "Wolf",
-        AbilityScores::new(8, 9, 9),
-        Gold::new(5),
-        Experience::new(0),
-        None,
-        None,
-        None,
-        vec![],
-        vec![],
-        vec![LevelUpChoice {
-            ability_increment: AbilityType::Dexterity,
-            class: ClassType::Monster,
-        }],
-    )
-    .await
-    .id;
-    let dire_wolf_id = cli_dungeon_database::create_character(
-        "Dire wolf",
-        AbilityScores::new(8, 9, 9),
-        Gold::new(5),
-        Experience::new(0),
-        None,
-        None,
-        None,
-        vec![],
-        vec![],
-        vec![
-            LevelUpChoice {
-                ability_increment: AbilityType::Dexterity,
-                class: ClassType::Monster,
-            },
-            LevelUpChoice {
-                ability_increment: AbilityType::Constitution,
-                class: ClassType::Monster,
-            },
-        ],
-    )
-    .await
-    .id;
+    let wolf_id = cli_dungeon_database::create_monster(MonsterType::Wolf)
+        .await
+        .id;
+
+    let dire_wolf_id = cli_dungeon_database::create_monster(MonsterType::DireWolf)
+        .await
+        .id;
 
     let player = FightParticipant {
         id: player_id,
