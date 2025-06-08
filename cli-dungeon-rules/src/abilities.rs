@@ -35,7 +35,7 @@ impl AbilityType {
     }
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
 pub struct AbilityScores {
     pub strength: Strength,
     pub dexterity: Dexterity,

@@ -1,6 +1,6 @@
 use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::{
-    Character,
+    Character, Status,
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
     classes::{ClassType, LevelUpChoice},
@@ -34,7 +34,14 @@ pub async fn create_character(
 pub async fn rest(character_info: &CharacterInfo) -> Result<(), GameError> {
     let character = get_character(character_info).await?;
 
-    cli_dungeon_database::set_character_health(character_info.id, character.max_health()).await;
+    cli_dungeon_database::set_character_health(&character.id, character.max_health()).await;
+    Ok(())
+}
+
+pub async fn quest(character_info: &CharacterInfo) -> Result<(), GameError> {
+    let character = get_character(character_info).await?;
+
+    cli_dungeon_database::set_character_status(&character.id, Status::Questing).await;
     Ok(())
 }
 
@@ -62,7 +69,7 @@ pub async fn levelup(
         class: parsed_class,
     };
 
-    cli_dungeon_database::add_level_up_choice(character.id, choice).await?;
+    cli_dungeon_database::add_level_up_choice(&character.id, choice).await?;
     rest(character_info).await?;
 
     Ok(())
@@ -73,7 +80,7 @@ pub async fn get_character(character_info: &CharacterInfo) -> Result<Character, 
         return Err(GameError::Dead);
     };
 
-    Ok(cli_dungeon_database::get_character(character_info.id).await?)
+    Ok(cli_dungeon_database::get_character(&character_info.id).await?)
 }
 
 pub async fn equip_main_hand(
@@ -125,7 +132,7 @@ pub async fn equip_armor(character_info: &CharacterInfo, armor: String) -> Resul
     };
 
     let armor_stats = parsed_armor.to_armor();
-    let character = cli_dungeon_database::get_character(character_info.id).await?;
+    let character = cli_dungeon_database::get_character(&character_info.id).await?;
 
     if **character.ability_scores().strength < **armor_stats.strength_requirement {
         return Err(GameError::InsufficientStrength);
@@ -154,15 +161,15 @@ async fn buy_weapon(character_info: &CharacterInfo, weapon: WeaponType) -> Resul
     };
 
     let stats = weapon.to_weapon();
-    let character = cli_dungeon_database::get_character(character_info.id).await?;
+    let character = cli_dungeon_database::get_character(&character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
     if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 
-    cli_dungeon_database::set_character_gold(character_info.id, new_gold).await;
-    cli_dungeon_database::add_weapon_to_inventory(character_info.id, weapon).await?;
+    cli_dungeon_database::set_character_gold(&character_info.id, new_gold).await;
+    cli_dungeon_database::add_weapon_to_inventory(&character_info.id, weapon).await?;
 
     Ok(())
 }
@@ -173,14 +180,14 @@ async fn buy_armor(character_info: &CharacterInfo, armor: ArmorType) -> Result<(
     };
 
     let stats = armor.to_armor();
-    let character = cli_dungeon_database::get_character(character_info.id).await?;
+    let character = cli_dungeon_database::get_character(&character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
     if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 
-    cli_dungeon_database::set_character_gold(character_info.id, new_gold).await;
-    cli_dungeon_database::add_armor_to_inventory(character_info.id, armor).await?;
+    cli_dungeon_database::set_character_gold(&character_info.id, new_gold).await;
+    cli_dungeon_database::add_armor_to_inventory(&character_info.id, armor).await?;
     Ok(())
 }

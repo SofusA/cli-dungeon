@@ -1,3 +1,5 @@
+use rand::seq::IndexedRandom;
+
 use crate::{
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
@@ -6,7 +8,39 @@ use crate::{
     weapons::WeaponType,
 };
 
+pub fn get_monster_encounter(rating: usize) -> Vec<MonsterType> {
+    monster_catalogue()
+        .get(rating)
+        .unwrap()
+        .choose(&mut rand::rng())
+        .unwrap()
+        .to_vec()
+}
+
+fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
+    vec![
+        vec![vec![MonsterType::Slime]],
+        vec![vec![MonsterType::Wolf]],
+        vec![
+            vec![MonsterType::Wolf, MonsterType::DireWolf],
+            vec![MonsterType::Wolf, MonsterType::Wolf],
+        ],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
+    ]
+}
+
+#[derive(Clone, Copy)]
 pub enum MonsterType {
+    TestMonsterWithDagger,
+    TestMonsterWithLeatherArmor,
+    Slime,
     Wolf,
     DireWolf,
 }
@@ -14,11 +48,46 @@ pub enum MonsterType {
 impl MonsterType {
     pub fn to_monster(self) -> MonsterDefinition {
         match self {
+            MonsterType::TestMonsterWithDagger => MonsterDefinition::new(
+                "Test monster",
+                AbilityScores::new(4, 2, 2),
+                Gold::new(1),
+                None,
+                None,
+                None,
+                vec![WeaponType::Dagger],
+                vec![],
+                vec![],
+            )
+            .unwrap(),
+            MonsterType::TestMonsterWithLeatherArmor => MonsterDefinition::new(
+                "Test monster",
+                AbilityScores::new(4, 2, 2),
+                Gold::new(1),
+                None,
+                None,
+                None,
+                vec![],
+                vec![ArmorType::Leather],
+                vec![],
+            )
+            .unwrap(),
+            MonsterType::Slime => MonsterDefinition::new(
+                "Slime",
+                AbilityScores::new(4, 2, 2),
+                Gold::new(5),
+                None,
+                None,
+                None,
+                vec![],
+                vec![ArmorType::Leather],
+                vec![],
+            )
+            .unwrap(),
             MonsterType::Wolf => MonsterDefinition::new(
                 "Wolf",
                 AbilityScores::new(8, 9, 9),
                 Gold::new(5),
-                Experience::new(0),
                 None,
                 None,
                 None,
@@ -34,7 +103,6 @@ impl MonsterType {
                 "Dire wolf",
                 AbilityScores::new(8, 9, 9),
                 Gold::new(5),
-                Experience::new(0),
                 None,
                 None,
                 None,
@@ -75,7 +143,6 @@ impl MonsterDefinition {
         name: &str,
         base_ability_scores: AbilityScores,
         gold: Gold,
-        experience: Experience,
         equipped_weapon: Option<WeaponType>,
         equipped_offhand: Option<WeaponType>,
         equipped_armor: Option<ArmorType>,
@@ -103,7 +170,7 @@ impl MonsterDefinition {
             name: name.to_string(),
             base_ability_scores,
             gold,
-            experience,
+            experience: Experience::new(0),
             equipped_weapon,
             equipped_offhand,
             equipped_armor,

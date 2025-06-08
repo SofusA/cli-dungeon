@@ -41,15 +41,21 @@ pub struct AttackStats {
     pub hit_bonus: AbilityScoreBonus,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum Status {
     #[default]
-    Idle,
     Resting,
     Questing,
     Fighting(i64),
 }
 
+pub struct Encounter {
+    pub id: i64,
+    pub rotation: Vec<Character>,
+    pub dead_characters: Vec<Character>,
+}
+
+#[derive(Clone)]
 pub struct Character {
     pub id: i64,
     pub name: String,
@@ -79,11 +85,9 @@ fn attack(attack_stats: &AttackStats) -> HealthPoints {
     HealthPoints::new(damage)
 }
 
-pub fn experience_gain(levels: Vec<LevelUpChoice>) -> Experience {
-    let level = levels.len();
-
-    match level {
-        0 => Experience::new(0),
+pub fn experience_gain(levels: usize) -> Experience {
+    match levels {
+        0 => Experience::new(10),
         1 => Experience::new(100),
         2 => Experience::new(150),
         3 => Experience::new(250),
@@ -134,7 +138,7 @@ impl Character {
 
     pub fn experience_level(&self) -> Level {
         let thresholds = [
-            0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+            300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
         ];
 
         for (level, &threshold) in thresholds.iter().enumerate() {
@@ -251,10 +255,14 @@ impl Character {
         }
 
         if hit > *self.armor_points() || critical_hit {
-            let damage = match critical_hit {
+            let mut damage = match critical_hit {
                 true => attack(attack_stats) + attack(attack_stats),
                 false => attack(attack_stats),
             };
+
+            if *damage < 0 {
+                damage = HealthPoints::new(0);
+            }
 
             self.current_health -= damage;
 

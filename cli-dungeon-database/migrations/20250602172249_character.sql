@@ -22,8 +22,9 @@ CREATE TABLE active_character (
     secret INTEGER NOT NULL
 );
 
-CREATE TABLE encounter_counter (
-    value INTEGER
+CREATE TABLE encounters (
+    rotation TEXT NOT NULL,
+    dead_characters TEXT NOT NULL
 );
 
 CREATE TABLE party_counter (
@@ -32,6 +33,5 @@ CREATE TABLE party_counter (
 
 
 INSERT INTO active_character (id, secret) VALUES (0, 0);
-INSERT INTO encounter_counter (value) VALUES (0);
 INSERT INTO party_counter (value) VALUES (0);
 

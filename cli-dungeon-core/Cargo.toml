@@ -10,6 +10,7 @@ cli-dungeon-database = { version = "*", path = "../cli-dungeon-database" }
 thiserror = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-futures = "0.3"
+futures = { workspace = true }
 rand = { workspace = true }
 sanitizer = { workspace = true }
+async-recursion = "1"

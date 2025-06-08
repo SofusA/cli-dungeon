@@ -1,7 +1,7 @@
 use std::sync::OnceLock;
 
 use cli_dungeon_rules::{
-    Character, Status,
+    Character, Encounter, Status,
     abilities::AbilityScores,
     armor::ArmorType,
     classes::LevelUpChoice,
@@ -10,6 +10,7 @@ use cli_dungeon_rules::{
     types::{Experience, Gold, HealthPoints, Level},
     weapons::WeaponType,
 };
+use futures::future::join_all;
 use serde_json::to_string;
 use sqlx::types::Json;
 use thiserror::Error;
@@ -51,7 +52,6 @@ struct CharacterRow {
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 enum DbStatus {
-    Idle,
     Resting,
     Questing,
 }
@@ -59,7 +59,6 @@ enum DbStatus {
 impl From<DbStatus> for Status {
     fn from(value: DbStatus) -> Self {
         match value {
-            DbStatus::Idle => Self::Idle,
             DbStatus::Resting => Self::Resting,
             DbStatus::Questing => Self::Questing,
         }
@@ -113,7 +112,7 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
     let levels_json = serde_json::to_string(&levels).unwrap();
-    let status_json = serde_json::to_string(&DbStatus::Idle).unwrap();
+    let status_json = serde_json::to_string(&DbStatus::Resting).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -143,20 +142,45 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     }
 }
 
-pub async fn create_encounter() -> i64 {
+pub async fn create_encounter(rotation: Vec<i64>) -> i64 {
     let mut connection = acquire!();
+
+    let rotation_json = serde_json::to_string(&rotation).unwrap();
+    let dead_characters: Vec<i64> = vec![];
+    let dead_characters_json = serde_json::to_string(&dead_characters).unwrap();
 
     let result = sqlx::query!(
         r#"
-            UPDATE encounter_counter SET value = value + 1;
-            SELECT value FROM encounter_counter;
+            insert into encounters (rotation, dead_characters) values ($1, $2);
         "#,
+        rotation_json,
+        dead_characters_json
     )
-    .fetch_one(&mut *connection)
+    .execute(&mut *connection)
     .await
     .unwrap();
 
-    result.value.unwrap()
+    result.last_insert_rowid()
+}
+
+pub async fn update_encounter(encounter_id: i64, rotation: Vec<i64>, dead: Vec<i64>) {
+    let mut connection = acquire!();
+    let rotation_json = serde_json::to_string(&rotation).unwrap();
+    let dead_json = serde_json::to_string(&dead).unwrap();
+
+    let result = sqlx::query!(
+        r#"
+        update encounters
+        set rotation = $2, dead_characters = $3
+        where rowid = $1"#,
+        encounter_id,
+        rotation_json,
+        dead_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
 }
 
 pub async fn create_party() -> i64 {
@@ -164,8 +188,8 @@ pub async fn create_party() -> i64 {
 
     let result = sqlx::query!(
         r#"
-            UPDATE party_counter SET value = value + 1;
-            SELECT value FROM party_counter;
+            update party_counter set value = value + 1;
+            select value from party_counter;
         "#,
     )
     .fetch_one(&mut *connection)
@@ -175,11 +199,20 @@ pub async fn create_party() -> i64 {
     result.value.unwrap()
 }
 
-pub async fn create_monster(
-    monster: MonsterType,
-    encounter_id: i64,
-    party_id: i64,
-) -> CharacterInfo {
+pub async fn set_encounter_id(character_id: &i64, encounter_id: Option<i64>) {
+    let mut connection = acquire!();
+    let result = sqlx::query!(
+        "update characters set encounter_id = $2 where rowid = $1",
+        character_id,
+        encounter_id
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInfo {
     let monster = monster.to_monster();
 
     let mut connection = acquire!();
@@ -207,8 +240,8 @@ pub async fn create_monster(
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices, status, encounter_id, party_id)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices, status, party_id)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         "#,
         secret,
         monster.name,
@@ -224,7 +257,6 @@ pub async fn create_monster(
         armor_inventory_json,
         levels_json,
         status_json,
-        encounter_id,
         party_id
     )
     .execute(&mut *connection)
@@ -237,7 +269,7 @@ pub async fn create_monster(
     }
 }
 
-pub async fn set_active_character(character: CharacterInfo) {
+pub async fn set_active_character(character: &CharacterInfo) {
     let mut connection = acquire!();
     sqlx::query!(
         r#"
@@ -271,7 +303,7 @@ pub async fn get_active_character() -> Result<CharacterInfo, DatabaseError> {
 }
 
 pub async fn validate_player(character_info: &CharacterInfo) -> Result<bool, DatabaseError> {
-    let character = get_character_row(character_info.id).await?;
+    let character = get_character_row(&character_info.id).await?;
     if character.secret != character_info.secret {
         return Err(DatabaseError::WrongSecret);
     }
@@ -288,15 +320,18 @@ pub enum DatabaseError {
 
     #[error("Character not found. Did you create one?")]
     CharacterNotFound,
+
+    #[error("Encounter not found")]
+    EncounterNotFound,
 }
 
-pub async fn get_character(id: i64) -> Result<Character, DatabaseError> {
+pub async fn get_character(id: &i64) -> Result<Character, DatabaseError> {
     let row = get_character_row(id).await?;
 
     Ok(row.into())
 }
 
-async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
+async fn get_character_row(id: &i64) -> Result<CharacterRow, DatabaseError> {
     let mut connection = acquire!();
 
     let result = sqlx::query_as!(
@@ -332,7 +367,83 @@ async fn get_character_row(id: i64) -> Result<CharacterRow, DatabaseError> {
     }
 }
 
-pub async fn set_character_health(id: i64, health: HealthPoints) {
+#[derive(Debug, sqlx::FromRow)]
+struct EncounterRow {
+    rotation: Json<Vec<i64>>,
+    dead_characters: Json<Vec<i64>>,
+    rowid: i64,
+}
+
+pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
+    let mut connection = acquire!();
+
+    let result = sqlx::query_as!(
+        EncounterRow,
+        r#"
+        select
+        rotation as "rotation: Json<Vec<i64>>",
+        dead_characters as "dead_characters: Json<Vec<i64>>",
+        rowid
+        from encounters where rowid = $1"#,
+        id
+    )
+    .fetch_one(&mut *connection)
+    .await;
+
+    match result {
+        Ok(row) => {
+            let rotation = join_all(
+                row.rotation
+                    .0
+                    .iter()
+                    .map(async |id| get_character(id).await.unwrap()),
+            )
+            .await;
+
+            let dead_characters = join_all(
+                row.dead_characters
+                    .0
+                    .iter()
+                    .map(async |id| get_character(id).await.unwrap()),
+            )
+            .await;
+
+            Ok(Encounter {
+                rotation,
+                dead_characters,
+                id: row.rowid,
+            })
+        }
+        Err(_) => Err(DatabaseError::EncounterNotFound),
+    }
+}
+
+pub async fn set_character_status(id: &i64, status: Status) {
+    let mut connection = acquire!();
+
+    if !matches!(status, Status::Fighting(_)) {
+        set_encounter_id(id, None).await;
+    }
+
+    let db_status = match status {
+        Status::Resting => DbStatus::Resting,
+        Status::Questing => DbStatus::Questing,
+        Status::Fighting(_) => DbStatus::Questing,
+    };
+    let db_status_json = serde_json::to_string(&db_status).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set status = $2 where rowid = $1",
+        id,
+        db_status_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn set_character_health(id: &i64, health: HealthPoints) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",
@@ -345,7 +456,7 @@ pub async fn set_character_health(id: i64, health: HealthPoints) {
     result.unwrap();
 }
 
-pub async fn set_character_gold(id: i64, gold: Gold) {
+pub async fn set_character_gold(id: &i64, gold: Gold) {
     let mut connection = acquire!();
     let result = sqlx::query!(
         "update characters set gold = $2 where rowid = $1",
@@ -358,7 +469,7 @@ pub async fn set_character_gold(id: i64, gold: Gold) {
     result.unwrap();
 }
 
-pub async fn set_character_experience(id: i64, experience: Experience) {
+pub async fn set_character_experience(id: &i64, experience: Experience) {
     let mut connection = acquire!();
 
     let result = sqlx::query!(
@@ -373,7 +484,7 @@ pub async fn set_character_experience(id: i64, experience: Experience) {
 }
 
 pub async fn add_level_up_choice(
-    character_id: i64,
+    character_id: &i64,
     choice: LevelUpChoice,
 ) -> Result<(), DatabaseError> {
     let character = get_character(character_id).await?;
@@ -397,7 +508,7 @@ pub async fn add_level_up_choice(
 }
 
 pub async fn add_weapon_to_inventory(
-    character_id: i64,
+    character_id: &i64,
     weapon: WeaponType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(character_id).await?;
@@ -421,7 +532,7 @@ pub async fn add_weapon_to_inventory(
 }
 
 pub async fn add_armor_to_inventory(
-    character_id: i64,
+    character_id: &i64,
     armor: ArmorType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(character_id).await?;

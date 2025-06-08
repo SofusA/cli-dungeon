@@ -89,6 +89,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
 
 [[package]]
+name = "async-recursion"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.101",
+]
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -234,6 +245,7 @@ dependencies = [
  "cli-dungeon-database",
  "cli-dungeon-rules",
  "color-print",
+ "rand 0.9.1",
  "thiserror 2.0.12",
  "tokio",
 ]
@@ -242,6 +254,7 @@ dependencies = [
 name = "cli-dungeon-core"
 version = "0.1.0"
 dependencies = [
+ "async-recursion",
  "cli-dungeon-database",
  "cli-dungeon-rules",
  "futures",
@@ -258,6 +271,7 @@ version = "0.1.0"
 dependencies = [
  "cli-dungeon-rules",
  "dirs",
+ "futures",
  "rand 0.9.1",
  "serde",
  "serde_json",
