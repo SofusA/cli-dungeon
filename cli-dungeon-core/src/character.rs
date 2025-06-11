@@ -4,6 +4,7 @@ use cli_dungeon_rules::{
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
     classes::{ClassType, LevelUpChoice},
+    jewelry::JewelryType,
     types::Gold,
     weapons::WeaponType,
 };
@@ -91,11 +92,84 @@ pub async fn equip_main_hand(
         return Err(GameError::UnknownWeapon);
     };
 
-    if !cli_dungeon_database::validate_player(character_info).await? {
-        return Err(GameError::Dead);
+    let character = get_character(character_info).await?;
+
+    let in_offhand = character
+        .equipped_offhand
+        .is_some_and(|weapon| weapon == parsed_weapon);
+    let expected_count = if in_offhand { 2 } else { 1 };
+
+    if character
+        .weapon_inventory
+        .into_iter()
+        .filter(|x| *x == parsed_weapon)
+        .count()
+        < expected_count
+    {
+        return Err(GameError::WeaponNotInInventory);
     };
 
     cli_dungeon_database::equip_weapon(character_info.id, parsed_weapon).await;
+
+    Ok(())
+}
+
+pub async fn equip_jewelry(
+    character_info: &CharacterInfo,
+    jewelry: String,
+) -> Result<(), GameError> {
+    let Some(parsed_jewelry) = JewelryType::from_jewelry_str(&jewelry) else {
+        return Err(GameError::UnknownJewelry);
+    };
+
+    let character = get_character(character_info).await?;
+    let mut equipped = character.equipped_jewelry.clone();
+
+    if equipped.len() > 3 {
+        return Err(GameError::TooManyJewelriesEquipped);
+    };
+
+    let in_inventory = character
+        .jewelry_inventory
+        .into_iter()
+        .filter(|jewelry| *jewelry == parsed_jewelry)
+        .count();
+
+    let already_equipped = character
+        .equipped_jewelry
+        .into_iter()
+        .filter(|jewelry| *jewelry == parsed_jewelry)
+        .count();
+
+    if in_inventory < already_equipped + 1 {
+        return Err(GameError::JewelryNotInInventory);
+    };
+
+    equipped.push(parsed_jewelry);
+
+    cli_dungeon_database::update_equipped_jewelry(character_info.id, equipped).await?;
+
+    Ok(())
+}
+
+pub async fn unequip_jewelry(
+    character_info: &CharacterInfo,
+    jewelry: String,
+) -> Result<(), GameError> {
+    let Some(parsed_jewelry) = JewelryType::from_jewelry_str(&jewelry) else {
+        return Err(GameError::UnknownJewelry);
+    };
+
+    let character = get_character(character_info).await?;
+    let mut equipped = character.equipped_jewelry.clone();
+
+    if let Some(index) = equipped.iter().position(|x| *x == parsed_jewelry) {
+        equipped.remove(index);
+    }
+
+    println!("Test: {:?}", equipped);
+
+    cli_dungeon_database::update_equipped_jewelry(character_info.id, equipped).await?;
 
     Ok(())
 }
@@ -108,14 +182,27 @@ pub async fn equip_offhand(
         return Err(GameError::UnknownWeapon);
     };
 
-    if !cli_dungeon_database::validate_player(character_info).await? {
-        return Err(GameError::Dead);
-    };
-
     let weapon_stats = parsed_weapon.to_weapon();
     if !weapon_stats.allow_offhand {
         return Err(GameError::NotOffHandWeapon);
     }
+
+    let character = get_character(character_info).await?;
+
+    let in_main_hand = character
+        .equipped_weapon
+        .is_some_and(|weapon| weapon == parsed_weapon);
+    let expected_count = if in_main_hand { 2 } else { 1 };
+
+    if character
+        .weapon_inventory
+        .into_iter()
+        .filter(|x| *x == parsed_weapon)
+        .count()
+        < expected_count
+    {
+        return Err(GameError::WeaponNotInInventory);
+    };
 
     cli_dungeon_database::equip_offhand(character_info.id, parsed_weapon).await;
 
@@ -133,6 +220,16 @@ pub async fn equip_armor(character_info: &CharacterInfo, armor: String) -> Resul
 
     let armor_stats = parsed_armor.to_armor();
     let character = cli_dungeon_database::get_character(&character_info.id).await?;
+
+    let in_inventory = character
+        .armor_inventory
+        .iter()
+        .filter(|armor| **armor == parsed_armor)
+        .count();
+
+    if in_inventory < 1 {
+        return Err(GameError::ArmorNotInInventory);
+    }
 
     if **character.ability_scores().strength < **armor_stats.strength_requirement {
         return Err(GameError::InsufficientStrength);

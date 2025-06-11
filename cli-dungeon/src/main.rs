@@ -59,6 +59,13 @@ enum CharacterCommands {
 
         #[arg(short, long)]
         armor: Option<String>,
+
+        #[arg(short, long)]
+        jewelry: Option<String>,
+    },
+    Unequip {
+        #[arg(short, long)]
+        jewelry: Option<String>,
     },
     Rest,
     Quest,
@@ -146,7 +153,11 @@ async fn main() -> Result<()> {
                     cprintln!("<red>Can level up!</>");
                 }
                 cprintln!("<yellow>Gold: {}</>", character.gold);
-                cprintln!("<yellow>Current health: {}</>", character.current_health);
+                cprintln!(
+                    "<yellow>Health: {}/{}</>",
+                    character.current_health,
+                    character.max_health()
+                );
                 cprintln!("Armor points: {}", character.armor_points());
                 cprintln!("Strength: {}", **character.ability_scores().strength);
                 cprintln!("Dexterity: {}", **character.ability_scores().dexterity);
@@ -176,7 +187,7 @@ async fn main() -> Result<()> {
                         .unwrap_or("Unequipped".to_string())
                 );
                 cprintln!(
-                    "Inventory: {} {}",
+                    "Inventory: {} {} {} {}",
                     character
                         .weapon_inventory
                         .iter()
@@ -188,6 +199,18 @@ async fn main() -> Result<()> {
                         .iter()
                         .map(|armor| armor.to_armor().name)
                         .collect::<Vec<_>>()
+                        .join(" "),
+                    character
+                        .jewelry_inventory
+                        .iter()
+                        .map(|jewelry| jewelry.to_jewelry().name)
+                        .collect::<Vec<_>>()
+                        .join(" "),
+                    character
+                        .item_inventory
+                        .iter()
+                        .map(|item| item.to_item().name)
+                        .collect::<Vec<_>>()
                         .join(" ")
                 );
             }
@@ -195,6 +218,7 @@ async fn main() -> Result<()> {
                 main_hand,
                 off_hand,
                 armor,
+                jewelry,
             } => {
                 let character_info = cli_dungeon_database::get_active_character().await?;
                 if let Some(main_hand) = main_hand {
@@ -206,6 +230,15 @@ async fn main() -> Result<()> {
                 }
                 if let Some(armor) = armor {
                     cli_dungeon_core::character::equip_armor(&character_info, armor).await?;
+                }
+                if let Some(jewelry) = jewelry {
+                    cli_dungeon_core::character::equip_jewelry(&character_info, jewelry).await?;
+                }
+            }
+            CharacterCommands::Unequip { jewelry } => {
+                let character_info = cli_dungeon_database::get_active_character().await?;
+                if let Some(jewelry) = jewelry {
+                    cli_dungeon_core::character::unequip_jewelry(&character_info, jewelry).await?;
                 }
             }
         },
@@ -324,7 +357,7 @@ mod tests {
         items::ItemType,
         jewelry::JewelryType,
         monsters::MonsterType,
-        types::{Constitution, Dexterity, Level, Strength},
+        types::{ArmorPoints, Constitution, Dexterity, Level, Strength},
         weapons::WeaponType,
     };
 
@@ -424,7 +457,9 @@ mod tests {
 
         assert_eq!(
             updated_character.experience,
-            experience_gain(0) + experience_gain(0) + experience_gain(0)
+            experience_gain(Level::new(0))
+                + experience_gain(Level::new(0))
+                + experience_gain(Level::new(0))
         );
 
         assert_eq!(
@@ -447,7 +482,7 @@ mod tests {
         );
         assert_eq!(updated_character.item_inventory, vec![ItemType::Stone]);
 
-        for _ in 0..30 {
+        for _ in 0..2 {
             cli_dungeon_core::character::rest(&character_info)
                 .await
                 .unwrap();
@@ -494,5 +529,30 @@ mod tests {
             updated_character.ability_scores().constitution,
             Constitution::new(8 + starting_con_bonus)
         );
+
+        cli_dungeon_core::character::equip_jewelry(
+            &character_info,
+            "ring of protection".to_string(),
+        )
+        .await
+        .unwrap();
+        let updated_character = get_character(&character_info).await.unwrap();
+
+        assert_eq!(
+            updated_character.equipped_jewelry,
+            vec![JewelryType::RingOfProtection]
+        );
+
+        assert_eq!(updated_character.armor_points(), ArmorPoints::new(14));
+
+        cli_dungeon_core::character::unequip_jewelry(
+            &character_info,
+            "ring of protection".to_string(),
+        )
+        .await
+        .unwrap();
+        let updated_character = get_character(&character_info).await.unwrap();
+
+        assert_eq!(updated_character.armor_points(), ArmorPoints::new(13));
     }
 }

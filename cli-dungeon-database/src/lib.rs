@@ -44,7 +44,7 @@ struct CharacterRow {
     equipped_weapon: Option<Json<WeaponType>>,
     equipped_offhand: Option<Json<WeaponType>>,
     equipped_armor: Option<Json<ArmorType>>,
-    equipped_jewelry: Option<Json<Vec<JewelryType>>>,
+    equipped_jewelry: Json<Vec<JewelryType>>,
     weapon_inventory: Json<Vec<WeaponType>>,
     armor_inventory: Json<Vec<ArmorType>>,
     jewelry_inventory: Json<Vec<JewelryType>>,
@@ -88,7 +88,7 @@ impl From<CharacterRow> for Character {
             equipped_weapon: row.equipped_weapon.map(|item| item.0),
             equipped_offhand: row.equipped_offhand.map(|item| item.0),
             equipped_armor: row.equipped_armor.map(|item| item.0),
-            equipped_jewelry: row.equipped_jewelry.map(|item| item.0),
+            equipped_jewelry: row.equipped_jewelry.0,
             weapon_inventory: row.weapon_inventory.0,
             armor_inventory: row.armor_inventory.0,
             jewelry_inventory: row.jewelry_inventory.0,
@@ -111,7 +111,7 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
 
     let party_id = create_party().await;
 
-    let base_ability_scores_serialized = serde_json::to_string(&ability_scores).unwrap();
+    let base_ability_scores_serialized = to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, Level::new(0));
     let secret = rand::random_range(1..=10000);
     let weapon_inventory: Vec<WeaponType> = vec![];
@@ -120,13 +120,13 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let item_inventory: Vec<ItemType> = vec![];
     let levels: Vec<LevelUpChoice> = vec![];
     let equipped_jewelry: Vec<JewelryType> = vec![];
-    let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
-    let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
-    let jewelry_inventory_json = serde_json::to_string(&jewelry_inventory).unwrap();
-    let item_inventory_json = serde_json::to_string(&item_inventory).unwrap();
-    let levels_json = serde_json::to_string(&levels).unwrap();
-    let equipped_jewelry_json = serde_json::to_string(&equipped_jewelry).unwrap();
-    let status_json = serde_json::to_string(&DbStatus::Resting).unwrap();
+    let weapon_inventory_json = to_string(&weapon_inventory).unwrap();
+    let armor_inventory_json = to_string(&armor_inventory).unwrap();
+    let jewelry_inventory_json = to_string(&jewelry_inventory).unwrap();
+    let item_inventory_json = to_string(&item_inventory).unwrap();
+    let levels_json = to_string(&levels).unwrap();
+    let equipped_jewelry_json = to_string(&equipped_jewelry).unwrap();
+    let status_json = to_string(&DbStatus::Resting).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -162,9 +162,9 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
 pub async fn create_encounter(rotation: Vec<i64>) -> i64 {
     let mut connection = acquire!();
 
-    let rotation_json = serde_json::to_string(&rotation).unwrap();
+    let rotation_json = to_string(&rotation).unwrap();
     let dead_characters: Vec<i64> = vec![];
-    let dead_characters_json = serde_json::to_string(&dead_characters).unwrap();
+    let dead_characters_json = to_string(&dead_characters).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -182,8 +182,8 @@ pub async fn create_encounter(rotation: Vec<i64>) -> i64 {
 
 pub async fn update_encounter(encounter_id: i64, rotation: Vec<i64>, dead: Vec<i64>) {
     let mut connection = acquire!();
-    let rotation_json = serde_json::to_string(&rotation).unwrap();
-    let dead_json = serde_json::to_string(&dead).unwrap();
+    let rotation_json = to_string(&rotation).unwrap();
+    let dead_json = to_string(&dead).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -233,30 +233,23 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
     let monster = monster.to_monster();
 
     let mut connection = acquire!();
-    let base_ability_scores_serialized =
-        serde_json::to_string(&monster.base_ability_scores).unwrap();
+    let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
     let health = max_health(
         &monster.base_ability_scores.constitution,
         Level::new(monster.levels.len() as u16),
     );
     let secret = rand::random_range(1..=10000);
-    let equipped_weapon = monster
-        .equipped_weapon
-        .map(|w| serde_json::to_string(&w).unwrap());
-    let equipped_offhand = monster
-        .equipped_offhand
-        .map(|w| serde_json::to_string(&w).unwrap());
-    let equipped_armor = monster
-        .equipped_armor
-        .map(|a| serde_json::to_string(&a).unwrap());
+    let equipped_weapon = monster.equipped_weapon.map(|w| to_string(&w).unwrap());
+    let equipped_offhand = monster.equipped_offhand.map(|w| to_string(&w).unwrap());
+    let equipped_armor = monster.equipped_armor.map(|a| to_string(&a).unwrap());
 
-    let equipped_jewelry_json = serde_json::to_string(&monster.equipped_jewelry).unwrap();
-    let weapon_inventory_json = serde_json::to_string(&monster.weapon_inventory).unwrap();
-    let armor_inventory_json = serde_json::to_string(&monster.armor_inventory).unwrap();
-    let jewelry_inventory_json = serde_json::to_string(&monster.jewelry_inventory).unwrap();
-    let item_inventory_json = serde_json::to_string(&monster.item_inventory).unwrap();
-    let levels_json = serde_json::to_string(&monster.levels).unwrap();
-    let status_json = serde_json::to_string(&DbStatus::Questing).unwrap();
+    let equipped_jewelry_json = to_string(&monster.equipped_jewelry).unwrap();
+    let weapon_inventory_json = to_string(&monster.weapon_inventory).unwrap();
+    let armor_inventory_json = to_string(&monster.armor_inventory).unwrap();
+    let jewelry_inventory_json = to_string(&monster.jewelry_inventory).unwrap();
+    let item_inventory_json = to_string(&monster.item_inventory).unwrap();
+    let levels_json = to_string(&monster.levels).unwrap();
+    let status_json = to_string(&DbStatus::Questing).unwrap();
 
     let result = sqlx::query!(
         r#"
@@ -456,7 +449,7 @@ pub async fn set_character_status(id: &i64, status: Status) {
         Status::Questing => DbStatus::Questing,
         Status::Fighting(_) => DbStatus::Questing,
     };
-    let db_status_json = serde_json::to_string(&db_status).unwrap();
+    let db_status_json = to_string(&db_status).unwrap();
 
     let result = sqlx::query!(
         "update characters set status = $2 where rowid = $1",
@@ -641,6 +634,26 @@ pub async fn equip_weapon(character_id: i64, weapon: WeaponType) {
     .await;
 
     result.unwrap();
+}
+
+pub async fn update_equipped_jewelry(
+    character_id: i64,
+    jewelry: Vec<JewelryType>,
+) -> Result<(), DatabaseError> {
+    let mut connection = acquire!();
+
+    let jewelry_json = to_string(&jewelry).unwrap();
+    let result = sqlx::query!(
+        "update characters set equipped_jewelry = $2 where rowid = $1",
+        character_id,
+        jewelry_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+
+    Ok(())
 }
 
 pub async fn equip_offhand(character_id: i64, weapon: WeaponType) {

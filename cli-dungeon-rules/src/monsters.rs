@@ -2,9 +2,9 @@ use rand::seq::IndexedRandom;
 
 use crate::{
     Dice,
-    abilities::AbilityScores,
+    abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
-    classes::LevelUpChoice,
+    classes::{ClassType, LevelUpChoice},
     items::ItemType,
     jewelry::JewelryType,
     roll_success,
@@ -101,7 +101,7 @@ impl MonsterType {
                 None,
                 vec![],
                 vec![],
-                vec![(ArmorType::Leather, None)],
+                vec![],
                 vec![],
                 vec![],
                 vec![],
@@ -119,12 +119,15 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
-                vec![],
+                vec![LevelUpChoice {
+                    ability_increment: AbilityType::Dexterity,
+                    class: ClassType::Monster,
+                }],
             )
             .unwrap(),
             MonsterType::DireWolf => MonsterDefinition::new(
                 "Dire wolf",
-                AbilityScores::new(8, 10, 10),
+                AbilityScores::new(8, 9, 9),
                 Gold::new(5),
                 None,
                 None,
@@ -134,7 +137,16 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
-                vec![],
+                vec![
+                    LevelUpChoice {
+                        ability_increment: AbilityType::Dexterity,
+                        class: ClassType::Monster,
+                    },
+                    LevelUpChoice {
+                        ability_increment: AbilityType::Constitution,
+                        class: ClassType::Monster,
+                    },
+                ],
             )
             .unwrap(),
         }

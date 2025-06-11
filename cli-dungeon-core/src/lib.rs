@@ -6,7 +6,7 @@ use cli_dungeon_rules::{
     items::ItemType,
     jewelry::JewelryType,
     roll,
-    types::{Experience, Gold},
+    types::{Experience, Gold, Level},
     weapons::WeaponType,
 };
 use futures::future::join_all;
@@ -180,7 +180,8 @@ async fn handle_attack(
                         .collect();
 
                     let experience_gained = Experience::new(
-                        *experience_gain(target.level_up_choices.len()) / same_party.len() as u32,
+                        *experience_gain(Level::new(target.level_up_choices.len() as u16))
+                            / same_party.len() as u32,
                     );
 
                     dead_list.push(target);
@@ -433,8 +434,21 @@ pub enum GameError {
     #[error("Unknown armor. Spelling error?")]
     UnknownArmor,
 
+    #[error("Unknown jewelry. Spelling error?")]
+    UnknownJewelry,
+
     #[error("Unknown class. Spelling error?")]
     UnknownClass,
+
+    #[error("Weapon not in inventory")]
+    WeaponNotInInventory,
+    #[error("Armor not in inventory")]
+    ArmorNotInInventory,
+    #[error("Weapon not in inventory")]
+    JewelryNotInInventory,
+
+    #[error("Too many jewelries equipped. Unequip one first")]
+    TooManyJewelriesEquipped,
 
     #[error(transparent)]
     Database(#[from] DatabaseError),

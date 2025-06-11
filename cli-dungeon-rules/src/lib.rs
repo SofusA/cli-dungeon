@@ -83,7 +83,7 @@ pub struct Character {
     pub equipped_weapon: Option<WeaponType>,
     pub equipped_offhand: Option<WeaponType>,
     pub equipped_armor: Option<ArmorType>,
-    pub equipped_jewelry: Option<Vec<JewelryType>>,
+    pub equipped_jewelry: Vec<JewelryType>,
     pub weapon_inventory: Vec<WeaponType>,
     pub armor_inventory: Vec<ArmorType>,
     pub jewelry_inventory: Vec<JewelryType>,
@@ -104,8 +104,9 @@ fn attack(attack_stats: &AttackStats) -> HealthPoints {
     HealthPoints::new(damage)
 }
 
-pub fn experience_gain(levels: usize) -> Experience {
-    match levels {
+pub fn experience_gain(level: Level) -> Experience {
+    let level = *level as usize;
+    match level {
         0 => Experience::new(10),
         1 => Experience::new(100),
         2 => Experience::new(150),
@@ -157,8 +158,8 @@ impl Character {
 
     pub fn experience_level(&self) -> Level {
         let thresholds = [
-            300, 900, 2700,
-            //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+            30, 300, 900,
+            // 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
         ];
 
         for (level, &threshold) in thresholds.iter().enumerate() {
@@ -255,22 +256,21 @@ impl Character {
         let base_armor = ArmorPoints::new(10);
         let dexterity_ability_score_bonus = self.ability_scores().dexterity.ability_score_bonus();
 
-        let dexterity_bonus: ArmorPoints = match armor.map(|armor| armor.max_dexterity_bonus) {
-            Some(max_bonus) => {
-                if *dexterity_ability_score_bonus > *max_bonus {
-                    max_bonus.into()
-                } else {
-                    dexterity_ability_score_bonus.into()
+        let dexterity_bonus: ArmorPoints =
+            match armor.as_ref().map(|armor| armor.max_dexterity_bonus) {
+                Some(max_bonus) => {
+                    if *dexterity_ability_score_bonus > *max_bonus {
+                        max_bonus.into()
+                    } else {
+                        dexterity_ability_score_bonus.into()
+                    }
                 }
-            }
-            None => dexterity_ability_score_bonus.into(),
-        };
+                None => dexterity_ability_score_bonus.into(),
+            };
 
-        let armor_bonus = self
-            .equipped_armor
-            .as_ref()
-            .map(|armor| armor.to_armor().armor_bonus)
-            .unwrap_or(ArmorPoints::new(0));
+        let armor_bonus = armor
+            .map(|armor| armor.armor_bonus)
+            .unwrap_or(ArmorPoints::new(10));
         let main_hand_bonus = self
             .equipped_weapon
             .as_ref()
@@ -282,7 +282,20 @@ impl Character {
             .map(|weapon| weapon.to_weapon().armor_bonus)
             .unwrap_or(ArmorPoints::new(0));
 
-        base_armor + armor_bonus + dexterity_bonus + main_hand_bonus + off_hand_bonus
+        let jewelry_bonus = ArmorPoints::new(
+            self.equipped_jewelry
+                .iter()
+                .map(|x| x.to_jewelry().armor_bonus)
+                .map(|x| *x)
+                .sum(),
+        );
+
+        base_armor
+            + armor_bonus
+            + dexterity_bonus
+            + main_hand_bonus
+            + off_hand_bonus
+            + jewelry_bonus
     }
 
     pub fn attacked(&mut self, attack_stats: &AttackStats) -> Option<Hit> {
