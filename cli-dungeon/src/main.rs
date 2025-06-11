@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use cli_dungeon_core::{Action, TurnOutcome, play, take_turn};
+use cli_dungeon_core::{Action, BonusAction, TurnOutcome, play, take_turn};
 use cli_dungeon_database::CharacterInfo;
 use cli_dungeon_rules::classes::ClassType;
 use color_print::{cformat, cprint, cprintln};
@@ -282,6 +282,9 @@ fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
             cli_dungeon_core::TurnOutcome::Death(character_name) => {
                 cprintln!("<red>{} died</>", character_name)
             }
+            cli_dungeon_core::TurnOutcome::StartTurn(character_name) => {
+                cprintln!("<green>It is {}'s turn!</>", character_name)
+            }
         }
     }
 }
@@ -297,6 +300,7 @@ async fn handle_encounter(character_info: &CharacterInfo) {
             .unwrap();
 
         let action = Action::Attack;
+        let bonus_action = BonusAction::OffHandAttack;
         let target = encounter
             .rotation
             .iter()
@@ -304,7 +308,9 @@ async fn handle_encounter(character_info: &CharacterInfo) {
             .map(|character| character.id)
             .choose(&mut rand::rng());
 
-        let outcome = take_turn(character_info, action, target).await.unwrap();
+        let outcome = take_turn(character_info, action, bonus_action, target, target)
+            .await
+            .unwrap();
         display_turn_outcome(outcome);
     }
 }
@@ -315,6 +321,8 @@ mod tests {
     use cli_dungeon_rules::{
         armor::ArmorType,
         experience_gain,
+        items::ItemType,
+        jewelry::JewelryType,
         monsters::MonsterType,
         types::{Constitution, Dexterity, Level, Strength},
         weapons::WeaponType,
@@ -381,6 +389,7 @@ mod tests {
 
         let enemy_1 = MonsterType::TestMonsterWithDagger;
         let enemy_2 = MonsterType::TestMonsterWithLeatherArmor;
+        let enemy_3 = MonsterType::TestMonsterWithRingOfProtectionAndStone;
 
         let enemy_1_id = cli_dungeon_database::create_monster(enemy_1, enemy_party_id)
             .await
@@ -388,8 +397,11 @@ mod tests {
         let enemy_2_id = cli_dungeon_database::create_monster(enemy_2, enemy_party_id)
             .await
             .id;
+        let enemy_3_id = cli_dungeon_database::create_monster(enemy_3, enemy_party_id)
+            .await
+            .id;
 
-        let rotation = vec![character_info.id, enemy_1_id, enemy_2_id];
+        let rotation = vec![character_info.id, enemy_1_id, enemy_2_id, enemy_3_id];
 
         let encounter_id = cli_dungeon_database::create_encounter(rotation.clone()).await;
 
@@ -405,13 +417,14 @@ mod tests {
             - WeaponType::Shortsword.to_weapon().cost
             - ArmorType::Leather.to_armor().cost
             + enemy_1.to_monster().gold
-            + enemy_2.to_monster().gold;
+            + enemy_2.to_monster().gold
+            + enemy_3.to_monster().gold;
 
         assert_eq!(updated_character.gold, expected_gold);
 
         assert_eq!(
             updated_character.experience,
-            experience_gain(0) + experience_gain(0)
+            experience_gain(0) + experience_gain(0) + experience_gain(0)
         );
 
         assert_eq!(
@@ -427,6 +440,12 @@ mod tests {
             updated_character.armor_inventory,
             vec![ArmorType::Leather, ArmorType::Leather,]
         );
+
+        assert_eq!(
+            updated_character.jewelry_inventory,
+            vec![JewelryType::RingOfProtection]
+        );
+        assert_eq!(updated_character.item_inventory, vec![ItemType::Stone]);
 
         for _ in 0..30 {
             cli_dungeon_core::character::rest(&character_info)

@@ -1,6 +1,8 @@
 use abilities::{AbilityScaling, AbilityScores, AbilityType};
 use armor::ArmorType;
 use classes::LevelUpChoice;
+use items::ItemType;
+use jewelry::JewelryType;
 use types::{
     AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold, HealthPoints, Level,
     Strength,
@@ -10,6 +12,8 @@ use weapons::WeaponType;
 pub mod abilities;
 pub mod armor;
 pub mod classes;
+pub mod items;
+pub mod jewelry;
 pub mod monsters;
 pub mod types;
 pub mod weapons;
@@ -24,6 +28,18 @@ pub fn roll(dice: &Dice) -> i16 {
     };
 
     rand::random_range(1..=max)
+}
+
+pub fn roll_success(dice: &Dice) -> bool {
+    let max = match dice {
+        Dice::D4 => 4,
+        Dice::D6 => 6,
+        Dice::D8 => 8,
+        Dice::D10 => 10,
+        Dice::D20 => 20,
+    };
+
+    rand::random_range(1..=max) == max
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -67,8 +83,11 @@ pub struct Character {
     pub equipped_weapon: Option<WeaponType>,
     pub equipped_offhand: Option<WeaponType>,
     pub equipped_armor: Option<ArmorType>,
+    pub equipped_jewelry: Option<Vec<JewelryType>>,
     pub weapon_inventory: Vec<WeaponType>,
     pub armor_inventory: Vec<ArmorType>,
+    pub jewelry_inventory: Vec<JewelryType>,
+    pub item_inventory: Vec<ItemType>,
     pub level_up_choices: Vec<LevelUpChoice>,
     pub status: Status,
     pub party: i64,
@@ -138,7 +157,8 @@ impl Character {
 
     pub fn experience_level(&self) -> Level {
         let thresholds = [
-            300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+            300, 900, 2700,
+            //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
         ];
 
         for (level, &threshold) in thresholds.iter().enumerate() {
@@ -174,17 +194,39 @@ impl Character {
             };
         };
 
-        let mut offhand_attack_dice = self
-            .equipped_offhand
-            .as_ref()
-            .map(|offhand| offhand.to_weapon().attack_dices)
-            .unwrap_or_default();
+        let ability_bonus = match weapon.to_weapon().primary_ability {
+            AbilityScaling::Strength => str.ability_score_bonus(),
+            AbilityScaling::Dexterity => dex.ability_score_bonus(),
+            AbilityScaling::Either => match **dex < **str {
+                true => str.ability_score_bonus(),
+                false => dex.ability_score_bonus(),
+            },
+        };
 
-        let offhand_attack_bonus = &self
-            .equipped_offhand
-            .as_ref()
-            .map(|offhand| offhand.to_weapon().attack_bonus)
-            .unwrap_or(AbilityScoreBonus::new(0));
+        let attack_dice = weapon.to_weapon().attack_dices;
+
+        AttackStats {
+            attack_dice,
+            attack_bonus: ability_bonus + weapon.to_weapon().attack_bonus,
+            hit_bonus: ability_bonus,
+        }
+    }
+
+    pub fn off_hand_attack_stats(&self) -> AttackStats {
+        let dex = &self.ability_scores().dexterity;
+        let str = &self.ability_scores().strength;
+
+        let Some(weapon) = &self.equipped_offhand else {
+            let ability_bonus = match **dex < **str {
+                true => str.ability_score_bonus(),
+                false => dex.ability_score_bonus(),
+            };
+            return AttackStats {
+                attack_dice: vec![Dice::D4],
+                attack_bonus: ability_bonus,
+                hit_bonus: ability_bonus,
+            };
+        };
 
         let ability_bonus = match weapon.to_weapon().primary_ability {
             AbilityScaling::Strength => str.ability_score_bonus(),
@@ -195,12 +237,11 @@ impl Character {
             },
         };
 
-        let mut attack_dice = weapon.to_weapon().attack_dices;
-        attack_dice.append(&mut offhand_attack_dice);
+        let attack_dice = weapon.to_weapon().attack_dices;
 
         AttackStats {
             attack_dice,
-            attack_bonus: ability_bonus + weapon.to_weapon().attack_bonus + *offhand_attack_bonus,
+            attack_bonus: ability_bonus + weapon.to_weapon().attack_bonus,
             hit_bonus: ability_bonus,
         }
     }

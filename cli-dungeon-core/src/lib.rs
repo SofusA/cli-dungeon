@@ -1,8 +1,11 @@
 use cli_dungeon_database::{CharacterInfo, DatabaseError};
 use cli_dungeon_rules::{
-    Character, Dice, Encounter, Hit, Status,
+    AttackStats, Character, Dice, Encounter, Hit, Status,
     armor::ArmorType,
-    experience_gain, roll,
+    experience_gain,
+    items::ItemType,
+    jewelry::JewelryType,
+    roll,
     types::{Experience, Gold},
     weapons::WeaponType,
 };
@@ -60,7 +63,7 @@ async fn new_encounter(player_id: i64) -> Vec<TurnOutcome> {
     let enemy_party_id = cli_dungeon_database::create_party().await;
 
     let monsters: Vec<_> = join_all(
-        cli_dungeon_rules::monsters::get_monster_encounter(*player.level() as usize)
+        cli_dungeon_rules::monsters::get_monster_encounter(player.level())
             .iter()
             .map(async |enemy| {
                 cli_dungeon_database::create_monster(*enemy, enemy_party_id)
@@ -110,18 +113,6 @@ async fn new_encounter(player_id: i64) -> Vec<TurnOutcome> {
         }
     }
 
-    let first_in_rotation = rotation.first().unwrap();
-    if monsters.contains(first_in_rotation) {
-        let monster = cli_dungeon_database::get_character(first_in_rotation)
-            .await
-            .unwrap();
-        let encounter = cli_dungeon_database::get_encounter(&encounter_id)
-            .await
-            .unwrap();
-        let mut first_turn_outcome = monster_take_turn(&monster, &encounter).await;
-        outcome.append(&mut first_turn_outcome);
-    }
-
     outcome
 }
 
@@ -129,8 +120,14 @@ pub enum Action {
     Attack,
 }
 
+pub enum BonusAction {
+    OffHandAttack,
+}
+
 async fn monster_take_turn(monster: &Character, encounter: &Encounter) -> Vec<TurnOutcome> {
     let action = Action::Attack;
+    let bonus_action = BonusAction::OffHandAttack;
+
     let target = encounter
         .rotation
         .iter()
@@ -138,78 +135,113 @@ async fn monster_take_turn(monster: &Character, encounter: &Encounter) -> Vec<Tu
         .map(|character| character.id)
         .choose(&mut rand::rng());
 
-    character_take_turn(monster, encounter, action, target).await
+    character_take_turn(monster, encounter, action, bonus_action, target, target).await
+}
+
+async fn handle_attack(
+    active_character: &Character,
+    attack_stats: &AttackStats,
+    target: Option<i64>,
+    rotation: &mut Vec<Character>,
+    dead_list: &mut Vec<Character>,
+) -> Vec<TurnOutcome> {
+    let mut outcome_list = vec![];
+
+    {
+        let Some(target) = target else {
+            outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
+            return outcome_list;
+        };
+
+        if !rotation
+            .iter()
+            .map(|character| character.id)
+            .collect::<Vec<_>>()
+            .contains(&target)
+        {
+            outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
+            return outcome_list;
+        }
+        let mut target = cli_dungeon_database::get_character(&target).await.unwrap();
+        let action_outcome = target.attacked(attack_stats);
+
+        match action_outcome {
+            Some(outcome) => {
+                outcome_list.push(TurnOutcome::Hit(outcome));
+                cli_dungeon_database::set_character_health(&target.id, target.current_health).await;
+
+                if !target.is_alive() {
+                    outcome_list.push(TurnOutcome::Death(target.name.clone()));
+
+                    rotation.retain(|character| character.id != target.id);
+                    let same_party: Vec<_> = rotation
+                        .iter()
+                        .filter(|character| character.party == active_character.party)
+                        .collect();
+
+                    let experience_gained = Experience::new(
+                        *experience_gain(target.level_up_choices.len()) / same_party.len() as u32,
+                    );
+
+                    dead_list.push(target);
+
+                    for character_info in same_party {
+                        let character = cli_dungeon_database::get_character(&character_info.id)
+                            .await
+                            .unwrap();
+                        let new_xp = character.experience + experience_gained;
+                        cli_dungeon_database::set_character_experience(&character_info.id, new_xp)
+                            .await;
+                    }
+                }
+            }
+            None => {
+                outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
+            }
+        }
+    }
+    outcome_list
 }
 
 async fn character_take_turn(
     active_character: &Character,
     encounter: &Encounter,
     action: Action,
+    bonus_action: BonusAction,
     target: Option<i64>,
+    bonus_action_target: Option<i64>,
 ) -> Vec<TurnOutcome> {
     let mut outcome_list = vec![];
     let mut new_dead_list = encounter.dead_characters.clone();
     let mut new_rotation = encounter.rotation.clone();
 
+    outcome_list.push(TurnOutcome::StartTurn(active_character.name.clone()));
+
     match action {
         Action::Attack => {
-            let Some(target) = target else {
-                outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
-                return outcome_list;
-            };
+            let mut outcome = handle_attack(
+                active_character,
+                &active_character.attack_stats(),
+                target,
+                &mut new_rotation,
+                &mut new_dead_list,
+            )
+            .await;
+            outcome_list.append(&mut outcome);
+        }
+    }
 
-            if !encounter
-                .rotation
-                .iter()
-                .map(|character| character.id)
-                .collect::<Vec<_>>()
-                .contains(&target)
-            {
-                outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
-                return outcome_list;
-            }
-            let mut target = cli_dungeon_database::get_character(&target).await.unwrap();
-            let outcome = target.attacked(&active_character.attack_stats());
-
-            match outcome {
-                Some(outcome) => {
-                    outcome_list.push(TurnOutcome::Hit(outcome));
-                    cli_dungeon_database::set_character_health(&target.id, target.current_health)
-                        .await;
-
-                    if !target.is_alive() {
-                        outcome_list.push(TurnOutcome::Death(target.name.clone()));
-
-                        new_rotation.retain(|character| character.id != target.id);
-                        let same_party: Vec<_> = new_rotation
-                            .iter()
-                            .filter(|character| character.party == active_character.party)
-                            .collect();
-
-                        let experience_gained = Experience::new(
-                            *experience_gain(target.level_up_choices.len())
-                                / same_party.len() as u32,
-                        );
-
-                        new_dead_list.push(target);
-
-                        for character_info in same_party {
-                            let character = cli_dungeon_database::get_character(&character_info.id)
-                                .await
-                                .unwrap();
-                            let new_xp = character.experience + experience_gained;
-                            cli_dungeon_database::set_character_experience(
-                                &character_info.id,
-                                new_xp,
-                            )
-                            .await;
-                        }
-                    }
-                }
-                None => {
-                    outcome_list.push(TurnOutcome::Miss(active_character.name.clone()));
-                }
-            }
+    match bonus_action {
+        BonusAction::OffHandAttack => {
+            let mut outcome = handle_attack(
+                active_character,
+                &active_character.off_hand_attack_stats(),
+                bonus_action_target,
+                &mut new_rotation,
+                &mut new_dead_list,
+            )
+            .await;
+            outcome_list.append(&mut outcome);
         }
     }
 
@@ -230,6 +262,14 @@ async fn character_take_turn(
             .iter()
             .flat_map(|character| character.armor_inventory.clone())
             .collect();
+        let jewelry_loot: Vec<JewelryType> = new_dead_list
+            .iter()
+            .flat_map(|character| character.jewelry_inventory.clone())
+            .collect();
+        let item_loot: Vec<ItemType> = new_dead_list
+            .iter()
+            .flat_map(|character| character.item_inventory.clone())
+            .collect();
 
         for character in new_rotation.iter() {
             let new_gold = character.gold + Gold::new(split_gold);
@@ -248,6 +288,20 @@ async fn character_take_turn(
             let recipient = new_rotation.choose(&mut rand::rng()).unwrap();
 
             cli_dungeon_database::add_armor_to_inventory(&recipient.id, armor)
+                .await
+                .unwrap();
+        }
+        for jewelry in jewelry_loot {
+            let recipient = new_rotation.choose(&mut rand::rng()).unwrap();
+
+            cli_dungeon_database::add_jewelry_to_inventory(&recipient.id, jewelry)
+                .await
+                .unwrap();
+        }
+        for item in item_loot {
+            let recipient = new_rotation.choose(&mut rand::rng()).unwrap();
+
+            cli_dungeon_database::add_item_to_inventory(&recipient.id, item)
                 .await
                 .unwrap();
         }
@@ -271,7 +325,9 @@ async fn character_take_turn(
 pub async fn take_turn(
     character_info: &CharacterInfo,
     action: Action,
+    bonus_action: BonusAction,
     target: Option<i64>,
+    bonus_action_target: Option<i64>,
 ) -> Result<Vec<TurnOutcome>, GameError> {
     let mut outcome = vec![];
 
@@ -295,7 +351,17 @@ pub async fn take_turn(
         return Err(GameError::NotPlayerTurn);
     }
 
-    outcome.append(&mut character_take_turn(&active_character, &encounter, action, target).await);
+    outcome.append(
+        &mut character_take_turn(
+            &active_character,
+            &encounter,
+            action,
+            bonus_action,
+            target,
+            bonus_action_target,
+        )
+        .await,
+    );
 
     loop {
         let encounter = cli_dungeon_database::get_encounter(&encounter_id)
@@ -323,6 +389,7 @@ pub enum TurnOutcome {
     Attack(Attack),
     Hit(Hit),
     Death(String),
+    StartTurn(String),
 }
 
 #[derive(Debug, Clone)]

@@ -1,16 +1,22 @@
 use rand::seq::IndexedRandom;
 
 use crate::{
-    abilities::{AbilityScores, AbilityType},
+    Dice,
+    abilities::AbilityScores,
     armor::ArmorType,
-    classes::{ClassType, LevelUpChoice},
-    types::{Experience, Gold},
+    classes::LevelUpChoice,
+    items::ItemType,
+    jewelry::JewelryType,
+    roll_success,
+    types::{Experience, Gold, Level},
     weapons::WeaponType,
 };
 
-pub fn get_monster_encounter(rating: usize) -> Vec<MonsterType> {
+pub fn get_monster_encounter(level: Level) -> Vec<MonsterType> {
+    let index = *level as usize;
+
     monster_catalogue()
-        .get(rating)
+        .get(index)
         .unwrap()
         .choose(&mut rand::rng())
         .unwrap()
@@ -25,14 +31,6 @@ fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
             vec![MonsterType::Wolf, MonsterType::DireWolf],
             vec![MonsterType::Wolf, MonsterType::Wolf],
         ],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
-        vec![vec![MonsterType::Wolf, MonsterType::DireWolf]],
     ]
 }
 
@@ -40,6 +38,7 @@ fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
 pub enum MonsterType {
     TestMonsterWithDagger,
     TestMonsterWithLeatherArmor,
+    TestMonsterWithRingOfProtectionAndStone,
     Slime,
     Wolf,
     DireWolf,
@@ -55,7 +54,10 @@ impl MonsterType {
                 None,
                 None,
                 None,
-                vec![WeaponType::Dagger],
+                vec![],
+                vec![(WeaponType::Dagger, None)],
+                vec![],
+                vec![],
                 vec![],
                 vec![],
             )
@@ -68,7 +70,25 @@ impl MonsterType {
                 None,
                 None,
                 vec![],
-                vec![ArmorType::Leather],
+                vec![],
+                vec![(ArmorType::Leather, None)],
+                vec![],
+                vec![],
+                vec![],
+            )
+            .unwrap(),
+            MonsterType::TestMonsterWithRingOfProtectionAndStone => MonsterDefinition::new(
+                "Test monster",
+                AbilityScores::new(4, 2, 14),
+                Gold::new(1),
+                None,
+                None,
+                None,
+                vec![JewelryType::RingOfProtection],
+                vec![],
+                vec![],
+                vec![(JewelryType::RingOfProtection, None)],
+                vec![(ItemType::Stone, None)],
                 vec![],
             )
             .unwrap(),
@@ -80,44 +100,41 @@ impl MonsterType {
                 None,
                 None,
                 vec![],
-                vec![ArmorType::Leather],
+                vec![],
+                vec![(ArmorType::Leather, None)],
+                vec![],
+                vec![],
                 vec![],
             )
             .unwrap(),
             MonsterType::Wolf => MonsterDefinition::new(
                 "Wolf",
-                AbilityScores::new(8, 9, 9),
+                AbilityScores::new(8, 10, 9),
                 Gold::new(5),
                 None,
                 None,
                 None,
                 vec![],
                 vec![],
-                vec![LevelUpChoice {
-                    ability_increment: AbilityType::Dexterity,
-                    class: ClassType::Monster,
-                }],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
             )
             .unwrap(),
             MonsterType::DireWolf => MonsterDefinition::new(
                 "Dire wolf",
-                AbilityScores::new(8, 9, 9),
+                AbilityScores::new(8, 10, 10),
                 Gold::new(5),
                 None,
                 None,
                 None,
                 vec![],
                 vec![],
-                vec![
-                    LevelUpChoice {
-                        ability_increment: AbilityType::Dexterity,
-                        class: ClassType::Monster,
-                    },
-                    LevelUpChoice {
-                        ability_increment: AbilityType::Constitution,
-                        class: ClassType::Monster,
-                    },
-                ],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
             )
             .unwrap(),
         }
@@ -132,8 +149,11 @@ pub struct MonsterDefinition {
     pub equipped_weapon: Option<WeaponType>,
     pub equipped_offhand: Option<WeaponType>,
     pub equipped_armor: Option<ArmorType>,
+    pub equipped_jewelry: Vec<JewelryType>,
     pub weapon_inventory: Vec<WeaponType>,
     pub armor_inventory: Vec<ArmorType>,
+    pub jewelry_inventory: Vec<JewelryType>,
+    pub item_inventory: Vec<ItemType>,
     pub levels: Vec<LevelUpChoice>,
 }
 
@@ -146,22 +166,81 @@ impl MonsterDefinition {
         equipped_weapon: Option<WeaponType>,
         equipped_offhand: Option<WeaponType>,
         equipped_armor: Option<ArmorType>,
-        weapon_inventory: Vec<WeaponType>,
-        armor_inventory: Vec<ArmorType>,
+        equipped_jewelry: Vec<JewelryType>,
+        weapon_inventory: Vec<(WeaponType, Option<Dice>)>,
+        armor_inventory: Vec<(ArmorType, Option<Dice>)>,
+        jewelry_inventory: Vec<(JewelryType, Option<Dice>)>,
+        item_inventory: Vec<(ItemType, Option<Dice>)>,
         levels: Vec<LevelUpChoice>,
     ) -> Result<Self, String> {
-        if let Some(ref weapon) = equipped_weapon {
-            if !weapon_inventory.contains(weapon) {
+        let weapon_inventory: Vec<_> = weapon_inventory
+            .into_iter()
+            .flat_map(|item| match item.1 {
+                Some(dice) => {
+                    if roll_success(&dice) {
+                        Some(item.0)
+                    } else {
+                        None
+                    }
+                }
+                None => Some(item.0),
+            })
+            .collect();
+
+        let armor_inventory: Vec<_> = armor_inventory
+            .into_iter()
+            .flat_map(|item| match item.1 {
+                Some(dice) => {
+                    if roll_success(&dice) {
+                        Some(item.0)
+                    } else {
+                        None
+                    }
+                }
+                None => Some(item.0),
+            })
+            .collect();
+
+        let jewelry_inventory: Vec<_> = jewelry_inventory
+            .into_iter()
+            .flat_map(|item| match item.1 {
+                Some(dice) => {
+                    if roll_success(&dice) {
+                        Some(item.0)
+                    } else {
+                        None
+                    }
+                }
+                None => Some(item.0),
+            })
+            .collect();
+
+        let item_inventory: Vec<_> = item_inventory
+            .into_iter()
+            .flat_map(|item| match item.1 {
+                Some(dice) => {
+                    if roll_success(&dice) {
+                        Some(item.0)
+                    } else {
+                        None
+                    }
+                }
+                None => Some(item.0),
+            })
+            .collect();
+
+        if let Some(weapon) = equipped_weapon {
+            if !weapon_inventory.contains(&weapon) {
                 return Err("Equipped weapon not in inventory".into());
             }
         }
-        if let Some(ref offhand) = equipped_offhand {
-            if !weapon_inventory.contains(offhand) {
+        if let Some(offhand) = equipped_offhand {
+            if !weapon_inventory.contains(&offhand) {
                 return Err("Equipped offhand not in inventory".into());
             }
         }
-        if let Some(ref armor) = equipped_armor {
-            if !armor_inventory.contains(armor) {
+        if let Some(armor) = equipped_armor {
+            if !armor_inventory.contains(&armor) {
                 return Err("Equipped armor not in inventory".into());
             }
         }
@@ -174,8 +253,11 @@ impl MonsterDefinition {
             equipped_weapon,
             equipped_offhand,
             equipped_armor,
+            equipped_jewelry,
             weapon_inventory,
             armor_inventory,
+            jewelry_inventory,
+            item_inventory,
             levels,
         })
     }

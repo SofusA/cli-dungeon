@@ -5,6 +5,8 @@ use cli_dungeon_rules::{
     abilities::AbilityScores,
     armor::ArmorType,
     classes::LevelUpChoice,
+    items::ItemType,
+    jewelry::JewelryType,
     max_health,
     monsters::MonsterType,
     types::{Experience, Gold, HealthPoints, Level},
@@ -42,8 +44,11 @@ struct CharacterRow {
     equipped_weapon: Option<Json<WeaponType>>,
     equipped_offhand: Option<Json<WeaponType>>,
     equipped_armor: Option<Json<ArmorType>>,
+    equipped_jewelry: Option<Json<Vec<JewelryType>>>,
     weapon_inventory: Json<Vec<WeaponType>>,
     armor_inventory: Json<Vec<ArmorType>>,
+    jewelry_inventory: Json<Vec<JewelryType>>,
+    item_inventory: Json<Vec<ItemType>>,
     level_up_choices: Json<Vec<LevelUpChoice>>,
     status: Json<DbStatus>,
     encounter_id: Option<i64>,
@@ -80,11 +85,14 @@ impl From<CharacterRow> for Character {
             experience: Experience::new(row.experience as u32),
             base_ability_scores: row.base_ability_scores.0,
             current_health: HealthPoints::new(row.current_health as i16),
-            equipped_weapon: row.equipped_weapon.map(|weapon| weapon.0),
-            equipped_offhand: row.equipped_offhand.map(|weapon| weapon.0),
-            equipped_armor: row.equipped_armor.map(|weapon| weapon.0),
+            equipped_weapon: row.equipped_weapon.map(|item| item.0),
+            equipped_offhand: row.equipped_offhand.map(|item| item.0),
+            equipped_armor: row.equipped_armor.map(|item| item.0),
+            equipped_jewelry: row.equipped_jewelry.map(|item| item.0),
             weapon_inventory: row.weapon_inventory.0,
             armor_inventory: row.armor_inventory.0,
+            jewelry_inventory: row.jewelry_inventory.0,
+            item_inventory: row.item_inventory.0,
             level_up_choices: row.level_up_choices.0,
             status,
             party: row.party_id,
@@ -108,16 +116,22 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let secret = rand::random_range(1..=10000);
     let weapon_inventory: Vec<WeaponType> = vec![];
     let armor_inventory: Vec<ArmorType> = vec![];
+    let jewelry_inventory: Vec<JewelryType> = vec![];
+    let item_inventory: Vec<ItemType> = vec![];
     let levels: Vec<LevelUpChoice> = vec![];
+    let equipped_jewelry: Vec<JewelryType> = vec![];
     let weapon_inventory_json = serde_json::to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&armor_inventory).unwrap();
+    let jewelry_inventory_json = serde_json::to_string(&jewelry_inventory).unwrap();
+    let item_inventory_json = serde_json::to_string(&item_inventory).unwrap();
     let levels_json = serde_json::to_string(&levels).unwrap();
+    let equipped_jewelry_json = serde_json::to_string(&equipped_jewelry).unwrap();
     let status_json = serde_json::to_string(&DbStatus::Resting).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, level_up_choices, status, party_id)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, equipped_jewelry, status, party_id)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         "#,
         secret,
         name,
@@ -128,7 +142,10 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
         *health,
         weapon_inventory_json,
         armor_inventory_json,
+        jewelry_inventory_json,
+        item_inventory_json,
         levels_json,
+        equipped_jewelry_json,
         status_json,
         party_id
     )
@@ -233,15 +250,18 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
         .equipped_armor
         .map(|a| serde_json::to_string(&a).unwrap());
 
+    let equipped_jewelry_json = serde_json::to_string(&monster.equipped_jewelry).unwrap();
     let weapon_inventory_json = serde_json::to_string(&monster.weapon_inventory).unwrap();
     let armor_inventory_json = serde_json::to_string(&monster.armor_inventory).unwrap();
+    let jewelry_inventory_json = serde_json::to_string(&monster.jewelry_inventory).unwrap();
+    let item_inventory_json = serde_json::to_string(&monster.item_inventory).unwrap();
     let levels_json = serde_json::to_string(&monster.levels).unwrap();
     let status_json = serde_json::to_string(&DbStatus::Questing).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, weapon_inventory, armor_inventory, level_up_choices, status, party_id)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, equipped_jewelry, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, status, party_id)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         "#,
         secret,
         monster.name,
@@ -253,8 +273,11 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
         equipped_weapon,
         equipped_offhand,
         equipped_armor,
+        equipped_jewelry_json,
         weapon_inventory_json,
         armor_inventory_json,
+        jewelry_inventory_json,
+        item_inventory_json,
         levels_json,
         status_json,
         party_id
@@ -349,8 +372,11 @@ async fn get_character_row(id: &i64) -> Result<CharacterRow, DatabaseError> {
         equipped_weapon as "equipped_weapon: Json<WeaponType>",
         equipped_offhand as "equipped_offhand: Json<WeaponType>",
         equipped_armor as "equipped_armor: Json<ArmorType>",
+        equipped_jewelry as "equipped_jewelry: Json<Vec<JewelryType>>",
         weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
         armor_inventory as "armor_inventory: Json<Vec<ArmorType>>",
+        jewelry_inventory as "jewelry_inventory: Json<Vec<JewelryType>>",
+        item_inventory as "item_inventory: Json<Vec<ItemType>>",
         level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>",
         encounter_id,
         party_id,
@@ -545,6 +571,54 @@ pub async fn add_armor_to_inventory(
 
     let result = sqlx::query!(
         "update characters set armor_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
+pub async fn add_jewelry_to_inventory(
+    character_id: &i64,
+    jewelry: JewelryType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(character_id).await?;
+    let mut new_inventory = character.jewelry_inventory;
+    new_inventory.push(jewelry);
+
+    let mut connection = acquire!();
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set jewelry_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(&mut *connection)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
+pub async fn add_item_to_inventory(
+    character_id: &i64,
+    item: ItemType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(character_id).await?;
+    let mut new_inventory = character.item_inventory;
+    new_inventory.push(item);
+
+    let mut connection = acquire!();
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set item_inventory = $2 where rowid = $1",
         character_id,
         inventory_json
     )
