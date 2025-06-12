@@ -15,11 +15,15 @@ pub enum ItemType {
     MinorHealingPotion,
 }
 
+pub enum ActionType {
+    Action(ItemAction),
+    BonusAction(ItemAction),
+}
+
 pub struct Item {
     pub name: String,
     pub cost: Gold,
-    pub action: Option<ItemAction>,
-    pub bonus_action: Option<ItemAction>,
+    pub action: ActionType,
 }
 
 pub enum ItemAction {
@@ -44,25 +48,22 @@ impl ItemType {
             ItemType::Stone => Item {
                 name: self.to_name(),
                 cost: Gold::new(1),
-                action: Some(ItemAction::Projectile(WeaponAttackStats {
+                action: ActionType::Action(ItemAction::Projectile(WeaponAttackStats {
                     primary_ability: AbilityScaling::Strength,
                     hit_bonus: AbilityScoreBonus::new(0),
                     attack_dices: vec![Dice::D4],
                     attack_bonus: AbilityScoreBonus::new(0),
                 })),
-                bonus_action: None,
             },
             ItemType::ScrollOfWeaken => Item {
                 name: self.to_name(),
                 cost: Gold::new(1000),
-                action: Some(ItemAction::Spell(SpellType::Weaken)),
-                bonus_action: None,
+                action: ActionType::Action(ItemAction::Spell(SpellType::Weaken)),
             },
             ItemType::MinorHealingPotion => Item {
                 name: self.to_name(),
                 cost: Gold::new(500),
-                action: None,
-                bonus_action: Some(ItemAction::Healing(HealthPoints::new(10))),
+                action: ActionType::BonusAction(ItemAction::Healing(HealthPoints::new(10))),
             },
         }
     }

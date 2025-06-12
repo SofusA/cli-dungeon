@@ -258,7 +258,8 @@ pub async fn set_encounter_id(pool: &Pool, character_id: &i64, encounter_id: Opt
 pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) -> CharacterInfo {
     let monster = monster.to_monster();
 
-   let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
+    let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
+
     let health = max_health(
         &monster.base_ability_scores.constitution,
         Level::new(monster.levels.len() as u16),

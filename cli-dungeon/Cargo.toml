@@ -15,3 +15,5 @@ thiserror = "2"
 anyhow = "1"
 rand = { workspace = true }
 sqlx = { workspace = true }
+dirs = "6"
+rhai = "*"

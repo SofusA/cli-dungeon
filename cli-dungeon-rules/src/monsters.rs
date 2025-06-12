@@ -26,7 +26,7 @@ pub fn get_monster_encounter(level: Level) -> Vec<MonsterType> {
 
 fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
     vec![
-        vec![vec![MonsterType::Slime]],
+        vec![vec![MonsterType::Slime, MonsterType::TestMonsterWithDagger]],
         vec![vec![MonsterType::Wolf]],
         vec![
             vec![MonsterType::Wolf, MonsterType::DireWolf],
@@ -50,7 +50,7 @@ impl MonsterType {
         match self {
             MonsterType::TestMonsterWithDagger => MonsterDefinition::new(
                 "Test monster",
-                AbilityScores::new(4, 2, 2),
+                AbilityScores::new(4, 2, 14),
                 Gold::new(1),
                 None,
                 None,

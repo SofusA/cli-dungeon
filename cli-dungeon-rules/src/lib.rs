@@ -68,6 +68,7 @@ pub enum Status {
     Fighting(i64),
 }
 
+#[derive(Clone)]
 pub struct Encounter {
     pub id: i64,
     pub rotation: Vec<Character>,
