@@ -1,20 +1,23 @@
 use abilities::{AbilityScaling, AbilityScores, AbilityType};
 use armor::ArmorType;
 use classes::LevelUpChoice;
+use conditions::ActiveCondition;
 use items::ItemType;
 use jewelry::JewelryType;
 use types::{
     AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold, HealthPoints, Level,
-    Strength,
+    QuestPoint, Strength,
 };
 use weapons::WeaponType;
 
 pub mod abilities;
 pub mod armor;
 pub mod classes;
+pub mod conditions;
 pub mod items;
 pub mod jewelry;
 pub mod monsters;
+pub mod spells;
 pub mod types;
 pub mod weapons;
 
@@ -91,6 +94,9 @@ pub struct Character {
     pub level_up_choices: Vec<LevelUpChoice>,
     pub status: Status,
     pub party: i64,
+    pub quest_points: QuestPoint,
+    pub short_rests_available: u16,
+    pub active_conditions: Vec<ActiveCondition>,
 }
 
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {
@@ -132,21 +138,21 @@ impl Character {
             self.level_up_choices
                 .iter()
                 .filter(|choice| choice.ability_increment == AbilityType::Strength)
-                .count() as u16,
+                .count() as i16,
         );
 
         let dexterity_level_bonus = Dexterity::new(
             self.level_up_choices
                 .iter()
                 .filter(|choice| choice.ability_increment == AbilityType::Dexterity)
-                .count() as u16,
+                .count() as i16,
         );
 
         let constitution_level_bonus = Constitution::new(
             self.level_up_choices
                 .iter()
                 .filter(|choice| choice.ability_increment == AbilityType::Constitution)
-                .count() as u16,
+                .count() as i16,
         );
 
         AbilityScores {
@@ -195,7 +201,7 @@ impl Character {
             };
         };
 
-        let ability_bonus = match weapon.to_weapon().primary_ability {
+        let ability_bonus = match weapon.to_weapon().attack_stats.primary_ability {
             AbilityScaling::Strength => str.ability_score_bonus(),
             AbilityScaling::Dexterity => dex.ability_score_bonus(),
             AbilityScaling::Either => match **dex < **str {
@@ -204,11 +210,11 @@ impl Character {
             },
         };
 
-        let attack_dice = weapon.to_weapon().attack_dices;
+        let attack_dice = weapon.to_weapon().attack_stats.attack_dices;
 
         AttackStats {
             attack_dice,
-            attack_bonus: ability_bonus + weapon.to_weapon().attack_bonus,
+            attack_bonus: ability_bonus + weapon.to_weapon().attack_stats.attack_bonus,
             hit_bonus: ability_bonus,
         }
     }
@@ -229,7 +235,7 @@ impl Character {
             };
         };
 
-        let ability_bonus = match weapon.to_weapon().primary_ability {
+        let ability_bonus = match weapon.to_weapon().attack_stats.primary_ability {
             AbilityScaling::Strength => str.ability_score_bonus(),
             AbilityScaling::Dexterity => dex.ability_score_bonus(),
             AbilityScaling::Either => match **dex < **str {
@@ -238,11 +244,11 @@ impl Character {
             },
         };
 
-        let attack_dice = weapon.to_weapon().attack_dices;
+        let attack_dice = weapon.to_weapon().attack_stats.attack_dices;
 
         AttackStats {
             attack_dice,
-            attack_bonus: ability_bonus + weapon.to_weapon().attack_bonus,
+            attack_bonus: ability_bonus + weapon.to_weapon().attack_stats.attack_bonus,
             hit_bonus: ability_bonus,
         }
     }

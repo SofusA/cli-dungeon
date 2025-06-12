@@ -246,6 +246,7 @@ dependencies = [
  "cli-dungeon-rules",
  "color-print",
  "rand 0.9.1",
+ "sqlx",
  "thiserror 2.0.12",
  "tokio",
 ]

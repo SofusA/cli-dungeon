@@ -43,7 +43,7 @@ pub struct AbilityScores {
 }
 
 impl AbilityScores {
-    pub fn new(strength: u16, dexterity: u16, constitution: u16) -> Self {
+    pub fn new(strength: i16, dexterity: i16, constitution: i16) -> Self {
         Self {
             strength: Strength::new(strength),
             dexterity: Dexterity::new(dexterity),

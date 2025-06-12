@@ -52,7 +52,7 @@ macro_rules! ability_wrapped_type {
         pub struct $name(AbilityScore);
 
         impl $name {
-            pub fn new(value: u16) -> Self {
+            pub fn new(value: i16) -> Self {
                 Self(AbilityScore::new(value))
             }
         }
@@ -64,15 +64,17 @@ wrapped_type!(Level, u16);
 wrapped_type!(HealthPoints, i16);
 wrapped_type!(Gold, u16);
 wrapped_type!(ArmorPoints, i16);
-wrapped_type!(AbilityScore, u16);
+wrapped_type!(AbilityScore, i16);
 wrapped_type!(AbilityScoreBonus, i16);
+wrapped_type!(Turn, i16);
+wrapped_type!(QuestPoint, u16);
 ability_wrapped_type!(Strength);
 ability_wrapped_type!(Dexterity);
 ability_wrapped_type!(Constitution);
 
 impl AbilityScore {
     pub fn ability_score_bonus(&self) -> AbilityScoreBonus {
-        AbilityScoreBonus((self.0 as i16 - 10) / 2)
+        AbilityScoreBonus((self.0 - 10) / 2)
     }
 }
 

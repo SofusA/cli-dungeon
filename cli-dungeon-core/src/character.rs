@@ -1,11 +1,11 @@
-use cli_dungeon_database::CharacterInfo;
+use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
     Character, Status,
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
     classes::{ClassType, LevelUpChoice},
     jewelry::JewelryType,
-    types::Gold,
+    types::{Gold, HealthPoints, QuestPoint},
     weapons::WeaponType,
 };
 use sanitizer::StringSanitizer;
@@ -13,10 +13,11 @@ use sanitizer::StringSanitizer;
 use crate::GameError;
 
 pub async fn create_character(
+    pool: &Pool,
     name: String,
-    strength: u16,
-    dexterity: u16,
-    constitution: u16,
+    strength: i16,
+    dexterity: i16,
+    constitution: i16,
 ) -> Result<CharacterInfo, GameError> {
     let mut instance = StringSanitizer::from(name.as_str());
     instance.alphanumeric();
@@ -28,30 +29,49 @@ pub async fn create_character(
     let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
 
     let character_info =
-        cli_dungeon_database::create_player_character(&sanitized_name, ability_scores).await;
+        cli_dungeon_database::create_player_character(pool, &sanitized_name, ability_scores).await;
     Ok(character_info)
 }
 
-pub async fn rest(character_info: &CharacterInfo) -> Result<(), GameError> {
-    let character = get_character(character_info).await?;
+pub async fn rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), GameError> {
+    let character = get_character(pool, character_info).await?;
 
-    cli_dungeon_database::set_character_health(&character.id, character.max_health()).await;
+    cli_dungeon_database::set_character_status(pool, &character.id, Status::Resting).await;
+    cli_dungeon_database::set_character_quest_points(pool, &character.id, QuestPoint::new(0)).await;
+    cli_dungeon_database::set_character_health(pool, &character.id, character.max_health()).await;
     Ok(())
 }
 
-pub async fn quest(character_info: &CharacterInfo) -> Result<(), GameError> {
-    let character = get_character(character_info).await?;
+pub async fn short_rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), GameError> {
+    let character = get_character(pool, character_info).await?;
+    let short_rests_available = character.short_rests_available;
 
-    cli_dungeon_database::set_character_status(&character.id, Status::Questing).await;
+    if short_rests_available < 1 {
+        return Err(GameError::InsufficientShortRests);
+    }
+
+    let new_health = HealthPoints::new(*character.max_health() / 2) + character.current_health;
+    let new_short_rests = character.short_rests_available - 1;
+
+    cli_dungeon_database::set_character_health(pool, &character.id, new_health).await;
+    cli_dungeon_database::set_character_short_rests(pool, &character.id, new_short_rests).await;
+    Ok(())
+}
+
+pub async fn quest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), GameError> {
+    let character = get_character(pool, character_info).await?;
+
+    cli_dungeon_database::set_character_status(pool, &character.id, Status::Questing).await;
     Ok(())
 }
 
 pub async fn levelup(
+    pool: &Pool,
     character_info: &CharacterInfo,
     class: String,
     ability_increment: String,
 ) -> Result<(), GameError> {
-    let character = get_character(character_info).await?;
+    let character = get_character(pool, character_info).await?;
 
     if character.experience_level() < character.level() {
         return Err(GameError::InsufficientExperience);
@@ -70,21 +90,25 @@ pub async fn levelup(
         class: parsed_class,
     };
 
-    cli_dungeon_database::add_level_up_choice(&character.id, choice).await?;
-    rest(character_info).await?;
+    cli_dungeon_database::add_level_up_choice(pool, &character.id, choice).await?;
+    rest(pool, character_info).await?;
 
     Ok(())
 }
 
-pub async fn get_character(character_info: &CharacterInfo) -> Result<Character, GameError> {
-    if !cli_dungeon_database::validate_player(character_info).await? {
+pub async fn get_character(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+) -> Result<Character, GameError> {
+    if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };
 
-    Ok(cli_dungeon_database::get_character(&character_info.id).await?)
+    Ok(cli_dungeon_database::get_character(pool, &character_info.id).await?)
 }
 
 pub async fn equip_main_hand(
+    pool: &Pool,
     character_info: &CharacterInfo,
     weapon: String,
 ) -> Result<(), GameError> {
@@ -92,7 +116,7 @@ pub async fn equip_main_hand(
         return Err(GameError::UnknownWeapon);
     };
 
-    let character = get_character(character_info).await?;
+    let character = get_character(pool, character_info).await?;
 
     let in_offhand = character
         .equipped_offhand
@@ -109,12 +133,13 @@ pub async fn equip_main_hand(
         return Err(GameError::WeaponNotInInventory);
     };
 
-    cli_dungeon_database::equip_weapon(character_info.id, parsed_weapon).await;
+    cli_dungeon_database::equip_weapon(pool, character_info.id, parsed_weapon).await;
 
     Ok(())
 }
 
 pub async fn equip_jewelry(
+    pool: &Pool,
     character_info: &CharacterInfo,
     jewelry: String,
 ) -> Result<(), GameError> {
@@ -122,7 +147,7 @@ pub async fn equip_jewelry(
         return Err(GameError::UnknownJewelry);
     };
 
-    let character = get_character(character_info).await?;
+    let character = get_character(pool, character_info).await?;
     let mut equipped = character.equipped_jewelry.clone();
 
     if equipped.len() > 3 {
@@ -147,12 +172,13 @@ pub async fn equip_jewelry(
 
     equipped.push(parsed_jewelry);
 
-    cli_dungeon_database::update_equipped_jewelry(character_info.id, equipped).await?;
+    cli_dungeon_database::update_equipped_jewelry(pool, character_info.id, equipped).await?;
 
     Ok(())
 }
 
 pub async fn unequip_jewelry(
+    pool: &Pool,
     character_info: &CharacterInfo,
     jewelry: String,
 ) -> Result<(), GameError> {
@@ -160,7 +186,7 @@ pub async fn unequip_jewelry(
         return Err(GameError::UnknownJewelry);
     };
 
-    let character = get_character(character_info).await?;
+    let character = get_character(pool, character_info).await?;
     let mut equipped = character.equipped_jewelry.clone();
 
     if let Some(index) = equipped.iter().position(|x| *x == parsed_jewelry) {
@@ -169,12 +195,13 @@ pub async fn unequip_jewelry(
 
     println!("Test: {:?}", equipped);
 
-    cli_dungeon_database::update_equipped_jewelry(character_info.id, equipped).await?;
+    cli_dungeon_database::update_equipped_jewelry(pool, character_info.id, equipped).await?;
 
     Ok(())
 }
 
 pub async fn equip_offhand(
+    pool: &Pool,
     character_info: &CharacterInfo,
     weapon: String,
 ) -> Result<(), GameError> {
@@ -187,7 +214,7 @@ pub async fn equip_offhand(
         return Err(GameError::NotOffHandWeapon);
     }
 
-    let character = get_character(character_info).await?;
+    let character = get_character(pool, character_info).await?;
 
     let in_main_hand = character
         .equipped_weapon
@@ -204,22 +231,26 @@ pub async fn equip_offhand(
         return Err(GameError::WeaponNotInInventory);
     };
 
-    cli_dungeon_database::equip_offhand(character_info.id, parsed_weapon).await;
+    cli_dungeon_database::equip_offhand(pool, character_info.id, parsed_weapon).await;
 
     Ok(())
 }
 
-pub async fn equip_armor(character_info: &CharacterInfo, armor: String) -> Result<(), GameError> {
+pub async fn equip_armor(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+    armor: String,
+) -> Result<(), GameError> {
     let Some(parsed_armor) = ArmorType::from_armor_str(&armor) else {
         return Err(GameError::UnknownArmor);
     };
 
-    if !cli_dungeon_database::validate_player(character_info).await? {
+    if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };
 
     let armor_stats = parsed_armor.to_armor();
-    let character = cli_dungeon_database::get_character(&character_info.id).await?;
+    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
 
     let in_inventory = character
         .armor_inventory
@@ -235,56 +266,68 @@ pub async fn equip_armor(character_info: &CharacterInfo, armor: String) -> Resul
         return Err(GameError::InsufficientStrength);
     }
 
-    cli_dungeon_database::equip_armor(character_info.id, parsed_armor).await;
+    cli_dungeon_database::equip_armor(pool, character_info.id, parsed_armor).await;
 
     Ok(())
 }
 
-pub async fn buy(character_info: &CharacterInfo, item: String) -> Result<(), GameError> {
+pub async fn buy(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+    item: String,
+) -> Result<(), GameError> {
     if let Some(weapon) = WeaponType::from_weapon_str(&item) {
-        return buy_weapon(character_info, weapon).await;
+        return buy_weapon(pool, character_info, weapon).await;
     };
 
     if let Some(armor) = ArmorType::from_armor_str(&item) {
-        return buy_armor(character_info, armor).await;
+        return buy_armor(pool, character_info, armor).await;
     };
 
     Err(GameError::UnknownItem)
 }
 
-async fn buy_weapon(character_info: &CharacterInfo, weapon: WeaponType) -> Result<(), GameError> {
-    if !cli_dungeon_database::validate_player(character_info).await? {
+async fn buy_weapon(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+    weapon: WeaponType,
+) -> Result<(), GameError> {
+    if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };
 
     let stats = weapon.to_weapon();
-    let character = cli_dungeon_database::get_character(&character_info.id).await?;
+    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
     if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 
-    cli_dungeon_database::set_character_gold(&character_info.id, new_gold).await;
-    cli_dungeon_database::add_weapon_to_inventory(&character_info.id, weapon).await?;
+    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
+    cli_dungeon_database::add_weapon_to_inventory(pool, &character_info.id, weapon).await?;
 
     Ok(())
 }
 
-async fn buy_armor(character_info: &CharacterInfo, armor: ArmorType) -> Result<(), GameError> {
-    if !cli_dungeon_database::validate_player(character_info).await? {
+async fn buy_armor(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+    armor: ArmorType,
+) -> Result<(), GameError> {
+    if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };
 
     let stats = armor.to_armor();
-    let character = cli_dungeon_database::get_character(&character_info.id).await?;
+    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
 
     let new_gold = character.gold - stats.cost;
     if new_gold < Gold::new(0) {
         return Err(GameError::InsufficientGold);
     }
 
-    cli_dungeon_database::set_character_gold(&character_info.id, new_gold).await;
-    cli_dungeon_database::add_armor_to_inventory(&character_info.id, armor).await?;
+    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
+    cli_dungeon_database::add_armor_to_inventory(pool, &character_info.id, armor).await?;
     Ok(())
 }

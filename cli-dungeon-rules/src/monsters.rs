@@ -5,6 +5,7 @@ use crate::{
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
     classes::{ClassType, LevelUpChoice},
+    conditions::ActiveCondition,
     items::ItemType,
     jewelry::JewelryType,
     roll_success,
@@ -60,6 +61,7 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
+                vec![],
             )
             .unwrap(),
             MonsterType::TestMonsterWithLeatherArmor => MonsterDefinition::new(
@@ -72,6 +74,7 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![(ArmorType::Leather, None)],
+                vec![],
                 vec![],
                 vec![],
                 vec![],
@@ -90,6 +93,7 @@ impl MonsterType {
                 vec![(JewelryType::RingOfProtection, None)],
                 vec![(ItemType::Stone, None)],
                 vec![],
+                vec![],
             )
             .unwrap(),
             MonsterType::Slime => MonsterDefinition::new(
@@ -99,6 +103,7 @@ impl MonsterType {
                 None,
                 None,
                 None,
+                vec![],
                 vec![],
                 vec![],
                 vec![],
@@ -123,6 +128,7 @@ impl MonsterType {
                     ability_increment: AbilityType::Dexterity,
                     class: ClassType::Monster,
                 }],
+                vec![],
             )
             .unwrap(),
             MonsterType::DireWolf => MonsterDefinition::new(
@@ -147,6 +153,7 @@ impl MonsterType {
                         class: ClassType::Monster,
                     },
                 ],
+                vec![],
             )
             .unwrap(),
         }
@@ -167,6 +174,7 @@ pub struct MonsterDefinition {
     pub jewelry_inventory: Vec<JewelryType>,
     pub item_inventory: Vec<ItemType>,
     pub levels: Vec<LevelUpChoice>,
+    pub active_conditions: Vec<ActiveCondition>,
 }
 
 impl MonsterDefinition {
@@ -184,6 +192,7 @@ impl MonsterDefinition {
         jewelry_inventory: Vec<(JewelryType, Option<Dice>)>,
         item_inventory: Vec<(ItemType, Option<Dice>)>,
         levels: Vec<LevelUpChoice>,
+        active_conditions: Vec<ActiveCondition>,
     ) -> Result<Self, String> {
         let weapon_inventory: Vec<_> = weapon_inventory
             .into_iter()
@@ -271,6 +280,7 @@ impl MonsterDefinition {
             jewelry_inventory,
             item_inventory,
             levels,
+            active_conditions,
         })
     }
 }

@@ -2,8 +2,8 @@ CREATE TABLE characters (
     name TEXT NOT NULL,
     secret INTEGER NOT NULL,
     player BOOLEAN NOT NULL,
-    gold INTEGER NOT NULL,
-    experience INTEGER NOT NULL,
+    gold INTEGER NOT NULL DEFAULT 0,
+    experience INTEGER NOT NULL DEFAULT 0,
     base_ability_scores TEXT NOT NULL,
     current_health INTEGER NOT NULL,
     equipped_weapon TEXT,
@@ -17,7 +17,10 @@ CREATE TABLE characters (
     level_up_choices TEXT NOT NULL,
     party_id INTEGER NOT NULL,
     encounter_id INTEGER,
-    status TEXT NOT NULL
+    status TEXT NOT NULL,
+    quest_points INTEGER NOT NULL DEFAULT 0,
+    short_rests INTEGER NOT NULL DEFAULT 0,
+    active_conditions TEXT NOT NULL
 );
 
 CREATE TABLE active_character (

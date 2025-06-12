@@ -1,15 +1,14 @@
-use std::sync::OnceLock;
-
 use cli_dungeon_rules::{
     Character, Encounter, Status,
     abilities::AbilityScores,
     armor::ArmorType,
     classes::LevelUpChoice,
+    conditions::ActiveCondition,
     items::ItemType,
     jewelry::JewelryType,
     max_health,
     monsters::MonsterType,
-    types::{Experience, Gold, HealthPoints, Level},
+    types::{Experience, Gold, HealthPoints, Level, QuestPoint},
     weapons::WeaponType,
 };
 use futures::future::join_all;
@@ -17,18 +16,41 @@ use serde_json::to_string;
 use sqlx::types::Json;
 use thiserror::Error;
 
-static POOL: OnceLock<sqlx::Pool<sqlx::Sqlite>> = OnceLock::new();
+pub type Pool = sqlx::Pool<sqlx::Sqlite>;
 
-macro_rules! acquire {
-    () => {
-        match POOL.get() {
-            Some(pool) => pool.acquire().await.unwrap(),
-            None => {
-                init().await;
-                POOL.get().unwrap().acquire().await.unwrap()
-            }
+pub async fn get_pool() -> Pool {
+    let database_url = if let Ok(url) = std::env::var("DATABASE_URL") {
+        std::path::PathBuf::from(url.replace("sqlite://", ""))
+    } else {
+        let mut url = dirs::data_local_dir().unwrap();
+        url.push("cli-dungeon");
+
+        if !url.exists() {
+            std::fs::create_dir_all(&url).expect("failed to create database directory");
         }
+
+        url.push("data.db");
+
+        url
     };
+
+    let options = sqlx::sqlite::SqliteConnectOptions::new()
+        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+        .filename(database_url)
+        .create_if_missing(true);
+
+     sqlx::SqlitePool::connect_with(options)
+        .await
+        .expect("failed to open database")
+    
+}
+
+pub async fn init(pool: &Pool) {
+    sqlx::migrate!("./migrations")
+        .run(pool)
+        .await
+        .expect("migration failed");
+
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -53,6 +75,9 @@ struct CharacterRow {
     status: Json<DbStatus>,
     encounter_id: Option<i64>,
     party_id: i64,
+    quest_points: i64,
+    short_rests: i64,
+    active_conditions: Json<Vec<ActiveCondition>>,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -96,6 +121,9 @@ impl From<CharacterRow> for Character {
             level_up_choices: row.level_up_choices.0,
             status,
             party: row.party_id,
+            quest_points: QuestPoint::new(row.quest_points as u16),
+            short_rests_available: row.short_rests as u16,
+            active_conditions: row.active_conditions.0,
         }
     }
 }
@@ -106,10 +134,8 @@ pub struct CharacterInfo {
     secret: i64,
 }
 
-pub async fn create_player_character(name: &str, ability_scores: AbilityScores) -> CharacterInfo {
-    let mut connection = acquire!();
-
-    let party_id = create_party().await;
+pub async fn create_player_character(pool: &Pool, name: &str, ability_scores: AbilityScores) -> CharacterInfo {
+    let party_id = create_party(pool).await;
 
     let base_ability_scores_serialized = to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, Level::new(0));
@@ -120,6 +146,7 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let item_inventory: Vec<ItemType> = vec![];
     let levels: Vec<LevelUpChoice> = vec![];
     let equipped_jewelry: Vec<JewelryType> = vec![];
+    let active_conditions: Vec<ActiveCondition> = vec![];
     let weapon_inventory_json = to_string(&weapon_inventory).unwrap();
     let armor_inventory_json = to_string(&armor_inventory).unwrap();
     let jewelry_inventory_json = to_string(&jewelry_inventory).unwrap();
@@ -127,17 +154,17 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     let levels_json = to_string(&levels).unwrap();
     let equipped_jewelry_json = to_string(&equipped_jewelry).unwrap();
     let status_json = to_string(&DbStatus::Resting).unwrap();
+    let active_condition_json = to_string(&active_conditions).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, equipped_jewelry, status, party_id)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+            insert into characters (secret, name, player, gold, base_ability_scores, current_health, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, equipped_jewelry, status, party_id, short_rests, active_conditions)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         "#,
         secret,
         name,
         true,
         100,
-        0,
         base_ability_scores_serialized,
         *health,
         weapon_inventory_json,
@@ -147,9 +174,11 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
         levels_json,
         equipped_jewelry_json,
         status_json,
-        party_id
+        party_id,
+        2,
+        active_condition_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await
     .unwrap();
 
@@ -159,8 +188,7 @@ pub async fn create_player_character(name: &str, ability_scores: AbilityScores) 
     }
 }
 
-pub async fn create_encounter(rotation: Vec<i64>) -> i64 {
-    let mut connection = acquire!();
+pub async fn create_encounter(pool: &Pool, rotation: Vec<i64>) -> i64 {
 
     let rotation_json = to_string(&rotation).unwrap();
     let dead_characters: Vec<i64> = vec![];
@@ -173,15 +201,15 @@ pub async fn create_encounter(rotation: Vec<i64>) -> i64 {
         rotation_json,
         dead_characters_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await
     .unwrap();
 
     result.last_insert_rowid()
 }
 
-pub async fn update_encounter(encounter_id: i64, rotation: Vec<i64>, dead: Vec<i64>) {
-    let mut connection = acquire!();
+pub async fn update_encounter(pool: &Pool, encounter_id: i64, rotation: Vec<i64>, dead: Vec<i64>) {
+
     let rotation_json = to_string(&rotation).unwrap();
     let dead_json = to_string(&dead).unwrap();
 
@@ -194,14 +222,13 @@ pub async fn update_encounter(encounter_id: i64, rotation: Vec<i64>, dead: Vec<i
         rotation_json,
         dead_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn create_party() -> i64 {
-    let mut connection = acquire!();
+pub async fn create_party(pool: &Pool ) -> i64 {
 
     let result = sqlx::query!(
         r#"
@@ -209,31 +236,29 @@ pub async fn create_party() -> i64 {
             select value from party_counter;
         "#,
     )
-    .fetch_one(&mut *connection)
+    .fetch_one(pool)
     .await
     .unwrap();
 
     result.value.unwrap()
 }
 
-pub async fn set_encounter_id(character_id: &i64, encounter_id: Option<i64>) {
-    let mut connection = acquire!();
+pub async fn set_encounter_id(pool: &Pool, character_id: &i64, encounter_id: Option<i64>) {
     let result = sqlx::query!(
         "update characters set encounter_id = $2 where rowid = $1",
         character_id,
         encounter_id
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInfo {
+pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) -> CharacterInfo {
     let monster = monster.to_monster();
 
-    let mut connection = acquire!();
-    let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
+   let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
     let health = max_health(
         &monster.base_ability_scores.constitution,
         Level::new(monster.levels.len() as u16),
@@ -250,11 +275,12 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
     let item_inventory_json = to_string(&monster.item_inventory).unwrap();
     let levels_json = to_string(&monster.levels).unwrap();
     let status_json = to_string(&DbStatus::Questing).unwrap();
+    let active_conditions_json = to_string(&monster.active_conditions).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, equipped_jewelry, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, status, party_id)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, equipped_jewelry, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, status, party_id, active_conditions)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         "#,
         secret,
         monster.name,
@@ -273,9 +299,11 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
         item_inventory_json,
         levels_json,
         status_json,
-        party_id
+        party_id,
+        active_conditions_json
+        
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await
     .unwrap();
 
@@ -285,9 +313,8 @@ pub async fn create_monster(monster: MonsterType, party_id: i64) -> CharacterInf
     }
 }
 
-pub async fn set_active_character(character: &CharacterInfo) {
-    let mut connection = acquire!();
-    sqlx::query!(
+pub async fn set_active_character(pool: &Pool, character: &CharacterInfo) {
+   sqlx::query!(
         r#"
         update active_character
         set id=$1, secret = $2
@@ -295,13 +322,12 @@ pub async fn set_active_character(character: &CharacterInfo) {
         character.id,
         character.secret
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await
     .unwrap();
 }
 
-pub async fn get_active_character() -> Result<CharacterInfo, DatabaseError> {
-    let mut connection = acquire!();
+pub async fn get_active_character(pool: &Pool ) -> Result<CharacterInfo, DatabaseError> {
 
     let result = sqlx::query_as!(
         CharacterInfo,
@@ -309,7 +335,7 @@ pub async fn get_active_character() -> Result<CharacterInfo, DatabaseError> {
         select id, secret from active_character limit 1
         "#
     )
-    .fetch_optional(&mut *connection)
+    .fetch_optional(pool)
     .await;
 
     match result.unwrap() {
@@ -318,8 +344,8 @@ pub async fn get_active_character() -> Result<CharacterInfo, DatabaseError> {
     }
 }
 
-pub async fn validate_player(character_info: &CharacterInfo) -> Result<bool, DatabaseError> {
-    let character = get_character_row(&character_info.id).await?;
+pub async fn validate_player(pool: &Pool, character_info: &CharacterInfo) -> Result<bool, DatabaseError> {
+    let character = get_character_row(pool, &character_info.id).await?;
     if character.secret != character_info.secret {
         return Err(DatabaseError::WrongSecret);
     }
@@ -341,14 +367,13 @@ pub enum DatabaseError {
     EncounterNotFound,
 }
 
-pub async fn get_character(id: &i64) -> Result<Character, DatabaseError> {
-    let row = get_character_row(id).await?;
+pub async fn get_character(pool: &Pool, id: &i64) -> Result<Character, DatabaseError> {
+    let row = get_character_row(pool, id).await?;
 
     Ok(row.into())
 }
 
-async fn get_character_row(id: &i64) -> Result<CharacterRow, DatabaseError> {
-    let mut connection = acquire!();
+async fn get_character_row(pool: &Pool, id: &i64) -> Result<CharacterRow, DatabaseError> {
 
     let result = sqlx::query_as!(
         CharacterRow,
@@ -371,13 +396,16 @@ async fn get_character_row(id: &i64) -> Result<CharacterRow, DatabaseError> {
         jewelry_inventory as "jewelry_inventory: Json<Vec<JewelryType>>",
         item_inventory as "item_inventory: Json<Vec<ItemType>>",
         level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>",
+        active_conditions as "active_conditions: Json<Vec<ActiveCondition>>",
+        short_rests,
+        quest_points,
         encounter_id,
         party_id,
         status as "status: Json<DbStatus>"
         from characters where rowid = $1"#,
         id
     )
-    .fetch_one(&mut *connection)
+    .fetch_one(pool)
     .await;
 
     match result {
@@ -393,8 +421,7 @@ struct EncounterRow {
     rowid: i64,
 }
 
-pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
-    let mut connection = acquire!();
+pub async fn get_encounter(pool: &Pool, id: &i64) -> Result<Encounter, DatabaseError> {
 
     let result = sqlx::query_as!(
         EncounterRow,
@@ -406,7 +433,7 @@ pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
         from encounters where rowid = $1"#,
         id
     )
-    .fetch_one(&mut *connection)
+    .fetch_one(pool)
     .await;
 
     match result {
@@ -415,7 +442,7 @@ pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
                 row.rotation
                     .0
                     .iter()
-                    .map(async |id| get_character(id).await.unwrap()),
+                    .map(async |id| get_character(pool, id).await.unwrap()),
             )
             .await;
 
@@ -423,7 +450,7 @@ pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
                 row.dead_characters
                     .0
                     .iter()
-                    .map(async |id| get_character(id).await.unwrap()),
+                    .map(async |id| get_character(pool, id).await.unwrap()),
             )
             .await;
 
@@ -437,11 +464,10 @@ pub async fn get_encounter(id: &i64) -> Result<Encounter, DatabaseError> {
     }
 }
 
-pub async fn set_character_status(id: &i64, status: Status) {
-    let mut connection = acquire!();
+pub async fn set_character_status(pool: &Pool, id: &i64, status: Status) {
 
     if !matches!(status, Status::Fighting(_)) {
-        set_encounter_id(id, None).await;
+        set_encounter_id(pool, id, None).await;
     }
 
     let db_status = match status {
@@ -456,61 +482,99 @@ pub async fn set_character_status(id: &i64, status: Status) {
         id,
         db_status_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn set_character_health(id: &i64, health: HealthPoints) {
-    let mut connection = acquire!();
+pub async fn set_character_health(pool: &Pool, id: &i64, health: HealthPoints) {
     let result = sqlx::query!(
         "update characters set current_health = $2 where rowid = $1",
         id,
         *health
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn set_character_gold(id: &i64, gold: Gold) {
-    let mut connection = acquire!();
+pub async fn set_character_short_rests(pool: &Pool, id: &i64, short_rests: u16) {
+    let result = sqlx::query!(
+        "update characters set short_rests = $2 where rowid = $1",
+        id,
+        short_rests
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn set_character_quest_points(pool: &Pool, id: &i64, quest_points: QuestPoint) {
+
+    let result = sqlx::query!(
+        "update characters set quest_points = $2 where rowid = $1",
+        id,
+        *quest_points
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn set_character_gold(pool: &Pool, id: &i64, gold: Gold) {
     let result = sqlx::query!(
         "update characters set gold = $2 where rowid = $1",
         id,
         *gold
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn set_character_experience(id: &i64, experience: Experience) {
-    let mut connection = acquire!();
+pub async fn set_character_conditions(
+ pool: &Pool,    character_id: i64,
+    conditions: Vec<ActiveCondition>,
+)  {
+
+    let conditions_json = to_string(&conditions).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set active_conditions = $2 where rowid = $1",
+        character_id,
+        conditions_json
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn set_character_experience(pool: &Pool, id: &i64, experience: Experience) {
 
     let result = sqlx::query!(
         "update characters set experience = $2 where rowid = $1",
         id,
         *experience
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
 pub async fn add_level_up_choice(
-    character_id: &i64,
+    pool: &Pool, character_id: &i64,
     choice: LevelUpChoice,
 ) -> Result<(), DatabaseError> {
-    let character = get_character(character_id).await?;
+    let character = get_character(pool, character_id).await?;
     let mut choices = character.level_up_choices;
     choices.push(choice);
-
-    let mut connection = acquire!();
 
     let inventory_json = to_string(&choices).unwrap();
 
@@ -519,7 +583,7 @@ pub async fn add_level_up_choice(
         character_id,
         inventory_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
@@ -527,14 +591,13 @@ pub async fn add_level_up_choice(
 }
 
 pub async fn add_weapon_to_inventory(
-    character_id: &i64,
+ pool: &Pool,    character_id: &i64,
     weapon: WeaponType,
 ) -> Result<(), DatabaseError> {
-    let character = get_character(character_id).await?;
+    let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.weapon_inventory;
     new_inventory.push(weapon);
 
-    let mut connection = acquire!();
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -543,7 +606,7 @@ pub async fn add_weapon_to_inventory(
         character_id,
         inventory_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
@@ -551,14 +614,13 @@ pub async fn add_weapon_to_inventory(
 }
 
 pub async fn add_armor_to_inventory(
-    character_id: &i64,
+ pool: &Pool,    character_id: &i64,
     armor: ArmorType,
 ) -> Result<(), DatabaseError> {
-    let character = get_character(character_id).await?;
+    let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.armor_inventory;
     new_inventory.push(armor);
 
-    let mut connection = acquire!();
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -567,7 +629,7 @@ pub async fn add_armor_to_inventory(
         character_id,
         inventory_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
@@ -575,14 +637,12 @@ pub async fn add_armor_to_inventory(
 }
 
 pub async fn add_jewelry_to_inventory(
-    character_id: &i64,
+ pool: &Pool,    character_id: &i64,
     jewelry: JewelryType,
 ) -> Result<(), DatabaseError> {
-    let character = get_character(character_id).await?;
+    let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.jewelry_inventory;
     new_inventory.push(jewelry);
-
-    let mut connection = acquire!();
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -591,7 +651,7 @@ pub async fn add_jewelry_to_inventory(
         character_id,
         inventory_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
@@ -599,14 +659,13 @@ pub async fn add_jewelry_to_inventory(
 }
 
 pub async fn add_item_to_inventory(
-    character_id: &i64,
+ pool: &Pool,    character_id: &i64,
     item: ItemType,
 ) -> Result<(), DatabaseError> {
-    let character = get_character(character_id).await?;
+    let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.item_inventory;
     new_inventory.push(item);
 
-    let mut connection = acquire!();
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -615,40 +674,37 @@ pub async fn add_item_to_inventory(
         character_id,
         inventory_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
     Ok(())
 }
 
-pub async fn equip_weapon(character_id: i64, weapon: WeaponType) {
-    let mut connection = acquire!();
+pub async fn equip_weapon(pool: &Pool, character_id: i64, weapon: WeaponType) {
     let weapon_json = to_string(&weapon).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_weapon = $2 where rowid = $1",
         character_id,
         weapon_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
 pub async fn update_equipped_jewelry(
-    character_id: i64,
+    pool: &Pool, character_id: i64,
     jewelry: Vec<JewelryType>,
 ) -> Result<(), DatabaseError> {
-    let mut connection = acquire!();
-
     let jewelry_json = to_string(&jewelry).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_jewelry = $2 where rowid = $1",
         character_id,
         jewelry_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
@@ -656,72 +712,37 @@ pub async fn update_equipped_jewelry(
     Ok(())
 }
 
-pub async fn equip_offhand(character_id: i64, weapon: WeaponType) {
-    let mut connection = acquire!();
+pub async fn equip_offhand(pool: &Pool, character_id: i64, weapon: WeaponType) {
     let weapon_json = to_string(&weapon).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_offhand = $2 where rowid = $1",
         character_id,
         weapon_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn equip_armor(character_id: i64, armor: ArmorType) {
-    let mut connection = acquire!();
+pub async fn equip_armor(pool: &Pool, character_id: i64, armor: ArmorType) {
     let armor_json = to_string(&armor).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_armor = $2 where rowid = $1",
         character_id,
         armor_json
     )
-    .execute(&mut *connection)
+    .execute(pool)
     .await;
 
     result.unwrap();
 }
 
-pub async fn delete_character(id: i64) {
-    let mut connection = acquire!();
+pub async fn delete_character(pool: &Pool, id: i64) {
     let result = sqlx::query!("delete from characters where rowid = $1", id)
-        .execute(&mut *connection)
+        .execute(pool)
         .await;
 
     result.unwrap();
 }
 
-async fn init() {
-    let database_url = if let Ok(url) = std::env::var("DATABASE_URL") {
-        std::path::PathBuf::from(url.replace("sqlite://", ""))
-    } else {
-        let mut url = dirs::data_local_dir().unwrap();
-        url.push("cli-dungeon");
-
-        if !url.exists() {
-            std::fs::create_dir_all(&url).expect("failed to create database directory");
-        }
-
-        url.push("data.db");
-
-        url
-    };
-
-    let options = sqlx::sqlite::SqliteConnectOptions::new()
-        .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
-        .filename(database_url)
-        .create_if_missing(true);
-
-    let pool = sqlx::SqlitePool::connect_with(options)
-        .await
-        .expect("failed to open database");
-
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("migration failed");
-
-    POOL.set(pool).expect("error setting static pool");
-}

@@ -10,6 +10,6 @@ dirs = "6"
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "sqlite", "migrate", "macros"] }
+sqlx = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
