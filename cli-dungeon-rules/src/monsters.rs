@@ -62,8 +62,7 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
-            )
-            .unwrap(),
+            ),
             MonsterType::TestMonsterWithLeatherArmor => MonsterDefinition::new(
                 "Test monster",
                 AbilityScores::new(4, 2, 2),
@@ -78,8 +77,7 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
-            )
-            .unwrap(),
+            ),
             MonsterType::TestMonsterWithRingOfProtectionAndStone => MonsterDefinition::new(
                 "Test monster",
                 AbilityScores::new(4, 2, 14),
@@ -94,8 +92,7 @@ impl MonsterType {
                 vec![(ItemType::Stone, None)],
                 vec![],
                 vec![],
-            )
-            .unwrap(),
+            ),
             MonsterType::Slime => MonsterDefinition::new(
                 "Slime",
                 AbilityScores::new(4, 2, 2),
@@ -110,8 +107,7 @@ impl MonsterType {
                 vec![],
                 vec![],
                 vec![],
-            )
-            .unwrap(),
+            ),
             MonsterType::Wolf => MonsterDefinition::new(
                 "Wolf",
                 AbilityScores::new(8, 10, 9),
@@ -129,8 +125,7 @@ impl MonsterType {
                     class: ClassType::Monster,
                 }],
                 vec![],
-            )
-            .unwrap(),
+            ),
             MonsterType::DireWolf => MonsterDefinition::new(
                 "Dire wolf",
                 AbilityScores::new(8, 9, 9),
@@ -154,8 +149,7 @@ impl MonsterType {
                     },
                 ],
                 vec![],
-            )
-            .unwrap(),
+            ),
         }
     }
 }
@@ -193,7 +187,7 @@ impl MonsterDefinition {
         item_inventory: Vec<(ItemType, Option<Dice>)>,
         levels: Vec<LevelUpChoice>,
         active_conditions: Vec<ActiveCondition>,
-    ) -> Result<Self, String> {
+    ) -> Self {
         let weapon_inventory: Vec<_> = weapon_inventory
             .into_iter()
             .flat_map(|item| match item.1 {
@@ -250,23 +244,7 @@ impl MonsterDefinition {
             })
             .collect();
 
-        if let Some(weapon) = equipped_weapon {
-            if !weapon_inventory.contains(&weapon) {
-                return Err("Equipped weapon not in inventory".into());
-            }
-        }
-        if let Some(offhand) = equipped_offhand {
-            if !weapon_inventory.contains(&offhand) {
-                return Err("Equipped offhand not in inventory".into());
-            }
-        }
-        if let Some(armor) = equipped_armor {
-            if !armor_inventory.contains(&armor) {
-                return Err("Equipped armor not in inventory".into());
-            }
-        }
-
-        Ok(Self {
+        Self {
             name: name.to_string(),
             base_ability_scores,
             gold,
@@ -281,6 +259,6 @@ impl MonsterDefinition {
             item_inventory,
             levels,
             active_conditions,
-        })
+        }
     }
 }
