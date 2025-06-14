@@ -1,6 +1,11 @@
 use character::{get_character, validate_player};
 use cli_dungeon_database::{CharacterInfo, Pool};
-use cli_dungeon_rules::{Dice, Encounter, Status, roll, types::QuestPoint};
+use cli_dungeon_rules::{
+    Dice, Encounter, Status,
+    loot::{self, Loot},
+    roll,
+    types::QuestPoint,
+};
 use errors::GameError;
 use futures::future::join_all;
 use turn::{TurnOutcome, advance_turn, monster_take_turn};
@@ -13,6 +18,7 @@ pub mod turn;
 pub enum PlayOutcome {
     NothingNew(Status),
     NewFight(Vec<TurnOutcome>),
+    CompletedQuest(Loot),
 }
 
 pub async fn play(
@@ -23,8 +29,36 @@ pub async fn play(
     let character = get_character(pool, character_info).await?;
 
     if character.quest_points == QuestPoint::new(100) {
-        // TODO: Get the loooooot
-        return Ok(PlayOutcome::NothingNew(character.status));
+        let Loot {
+            weapons,
+            armor,
+            items,
+            jewelry,
+        } = loot::get_loot(character.level());
+
+        for weapon in weapons.iter() {
+            cli_dungeon_database::add_weapon_to_inventory(pool, &character.id, *weapon).await?
+        }
+        for armor in armor.iter() {
+            cli_dungeon_database::add_armor_to_inventory(pool, &character.id, *armor).await?
+        }
+        for item in items.iter() {
+            cli_dungeon_database::add_item_to_inventory(pool, &character.id, *item).await?
+        }
+        for jewelry in jewelry.iter() {
+            cli_dungeon_database::add_jewelry_to_inventory(pool, &character.id, *jewelry).await?
+        }
+
+        cli_dungeon_database::set_character_quest_points(pool, &character.id, QuestPoint::new(0))
+            .await;
+
+        let loot = Loot {
+            weapons,
+            armor,
+            items,
+            jewelry,
+        };
+        return Ok(PlayOutcome::CompletedQuest(loot));
     }
 
     if let Status::Questing = character.status {

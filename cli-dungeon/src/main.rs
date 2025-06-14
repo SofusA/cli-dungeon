@@ -337,6 +337,32 @@ async fn main() -> Result<()> {
                     display_turn_outcome(outcome);
                     handle_encounter(&pool, &character_info).await;
                 }
+                cli_dungeon_core::PlayOutcome::CompletedQuest(loot) => {
+                    cprintln!("<blue>Quest completed!</>");
+                    cprintln!(
+                        "Loot: {} {} {} {}",
+                        loot.weapons
+                            .iter()
+                            .map(|weapon| weapon.to_weapon().name)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        loot.armor
+                            .iter()
+                            .map(|armor| armor.to_armor().name)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        loot.jewelry
+                            .iter()
+                            .map(|jewelry| jewelry.to_jewelry().name)
+                            .collect::<Vec<_>>()
+                            .join(" "),
+                        loot.items
+                            .iter()
+                            .map(|item| item.to_item().name)
+                            .collect::<Vec<_>>()
+                            .join(" ")
+                    );
+                }
             }
         }
     }
@@ -568,5 +594,6 @@ mod tests {
         // - item
         // - weapons: check unequip
         // - armor: check unequip
+        // TODO: Assert the looooot (completed quest)
     }
 }

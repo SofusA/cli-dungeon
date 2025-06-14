@@ -16,6 +16,7 @@ pub mod classes;
 pub mod conditions;
 pub mod items;
 pub mod jewelry;
+pub mod loot;
 pub mod monsters;
 pub mod spells;
 pub mod types;
