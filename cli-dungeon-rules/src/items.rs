@@ -43,6 +43,16 @@ impl ItemType {
             .to_string()
     }
 
+    pub fn from_item_str(string: &str) -> Option<Self> {
+        let string = string.to_lowercase();
+        match string.as_str() {
+            "stone" => Some(Self::Stone),
+            "scroll of weaken" => Some(Self::ScrollOfWeaken),
+            "minor healing potion" => Some(Self::MinorHealingPotion),
+            _ => None,
+        }
+    }
+
     pub fn to_item(&self) -> Item {
         match self {
             ItemType::Stone => Item {

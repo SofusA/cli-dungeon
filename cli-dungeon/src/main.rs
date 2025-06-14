@@ -56,7 +56,7 @@ enum CharacterCommands {
         main_hand: Option<String>,
 
         #[arg(short, long)]
-        off_hand: Option<String>,
+        offhand: Option<String>,
 
         #[arg(short, long)]
         armor: Option<String>,
@@ -100,7 +100,10 @@ enum ShopCommands {
         #[arg(short, long)]
         item: String,
     },
-    // TODO: Sell
+    Sell {
+        #[arg(short, long)]
+        item: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -242,7 +245,7 @@ async fn main() -> Result<()> {
             }
             CharacterCommands::Equip {
                 main_hand,
-                off_hand,
+                offhand,
                 armor,
                 jewelry,
             } => {
@@ -251,8 +254,8 @@ async fn main() -> Result<()> {
                     cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand)
                         .await?;
                 }
-                if let Some(off_hand) = off_hand {
-                    cli_dungeon_core::character::equip_offhand(&pool, &character_info, off_hand)
+                if let Some(offhand) = offhand {
+                    cli_dungeon_core::character::equip_offhand(&pool, &character_info, offhand)
                         .await?;
                 }
                 if let Some(armor) = armor {
@@ -298,10 +301,25 @@ async fn main() -> Result<()> {
                         .collect::<Vec<_>>()
                         .join(" ")
                 );
+                cprintln!(
+                    "item: {}",
+                    shop.items
+                        .iter()
+                        .map(|item| {
+                            let item = item.to_item();
+                            cformat!("<blue>{}: </><yellow>{}</>", item.name, item.cost)
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ")
+                );
             }
             ShopCommands::Buy { item } => {
                 let character_info = cli_dungeon_database::get_active_character(&pool).await?;
-                cli_dungeon_core::character::buy(&pool, &character_info, item).await?;
+                cli_dungeon_core::shop::buy(&pool, &character_info, item).await?;
+            }
+            ShopCommands::Sell { item } => {
+                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                cli_dungeon_core::shop::sell(&pool, &character_info, item).await?;
             }
         },
         Commands::Play { force } => {
@@ -371,15 +389,15 @@ mod tests {
 
         // Shop
         let main_hand = "shortsword".to_string();
-        let off_hand = "dagger".to_string();
+        let offhand = "dagger".to_string();
         let armor = "leather".to_string();
-        cli_dungeon_core::character::buy(&pool, &character_info, main_hand.clone())
+        cli_dungeon_core::shop::buy(&pool, &character_info, main_hand.clone())
             .await
             .unwrap();
-        cli_dungeon_core::character::buy(&pool, &character_info, off_hand.clone())
+        cli_dungeon_core::shop::buy(&pool, &character_info, offhand.clone())
             .await
             .unwrap();
-        cli_dungeon_core::character::buy(&pool, &character_info, armor.clone())
+        cli_dungeon_core::shop::buy(&pool, &character_info, armor.clone())
             .await
             .unwrap();
 
@@ -387,7 +405,7 @@ mod tests {
         cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand)
             .await
             .unwrap();
-        cli_dungeon_core::character::equip_offhand(&pool, &character_info, off_hand)
+        cli_dungeon_core::character::equip_offhand(&pool, &character_info, offhand)
             .await
             .unwrap();
         cli_dungeon_core::character::equip_armor(&pool, &character_info, armor)
@@ -545,5 +563,10 @@ mod tests {
         // TODO: Assert qusting points
         // TODO: Assert conditions
         // TODO: Assert short rests
+        // TODO: Assert sell
+        // - jewelry: check unequip
+        // - item
+        // - weapons: check unequip
+        // - armor: check unequip
     }
 }

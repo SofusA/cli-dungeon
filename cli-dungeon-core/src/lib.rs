@@ -1,4 +1,4 @@
-use character::get_character;
+use character::{get_character, validate_player};
 use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{Dice, Encounter, Status, roll, types::QuestPoint};
 use errors::GameError;
@@ -60,9 +60,7 @@ pub async fn get_encounter(
 }
 
 async fn get_status(pool: &Pool, character_info: &CharacterInfo) -> Result<Status, GameError> {
-    if !cli_dungeon_database::validate_player(pool, character_info).await? {
-        return Err(GameError::Dead);
-    };
+    validate_player(pool, character_info).await?;
 
     Ok(
         cli_dungeon_database::get_character(pool, &character_info.id)

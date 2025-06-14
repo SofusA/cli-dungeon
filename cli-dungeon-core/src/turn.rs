@@ -12,17 +12,22 @@ use cli_dungeon_rules::{
 };
 use rand::seq::{IndexedRandom, IteratorRandom};
 
-use crate::errors::GameError;
+use crate::{errors::GameError, validate_player};
 
 pub(crate) async fn advance_turn(pool: &Pool, character: &Character) {
     let new_conditions: Vec<_> = character
         .active_conditions
         .clone()
         .into_iter()
-        .filter(|condition| condition.duration < Turn::new(0))
-        .map(|mut condition| {
-            condition.duration -= Turn::new(1);
+        .filter(|condition| {
             condition
+                .duration
+                .is_some_and(|condition| condition < Turn::new(0))
+        })
+        .inspect(|condition| {
+            if let Some(mut duration) = condition.duration {
+                duration -= Turn::new(1);
+            }
         })
         .collect();
 
@@ -161,7 +166,7 @@ async fn character_take_turn(
                 let mut outcome = handle_attack(
                     pool,
                     active_character,
-                    &active_character.off_hand_attack_stats(),
+                    &active_character.offhand_attack_stats(),
                     target,
                     &mut new_rotation,
                     &mut new_dead_list,
@@ -260,9 +265,7 @@ pub async fn take_turn(
 ) -> Result<Vec<TurnOutcome>, GameError> {
     let mut outcome = vec![];
 
-    if !cli_dungeon_database::validate_player(pool, character_info).await? {
-        return Err(GameError::Dead);
-    };
+    validate_player(pool, character_info).await?;
 
     let active_character = cli_dungeon_database::get_character(pool, &character_info.id)
         .await

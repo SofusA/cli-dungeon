@@ -38,7 +38,7 @@ impl SpellType {
             SpellType::Weaken => Spell {
                 name: self.to_name(),
                 action: Some(SpellAction::Condition(ActiveCondition {
-                    duration: Turn::new(2),
+                    duration: Some(Turn::new(2)),
                     condition_type: ConditionType::Weaken,
                 })),
                 bonus_action: None,

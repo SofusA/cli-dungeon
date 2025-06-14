@@ -47,10 +47,15 @@ pub enum GameError {
 
     #[error("Weapon not in inventory")]
     WeaponNotInInventory,
+
     #[error("Armor not in inventory")]
     ArmorNotInInventory,
-    #[error("Weapon not in inventory")]
+
+    #[error("Jewelry not in inventory")]
     JewelryNotInInventory,
+
+    #[error("Item not in inventory")]
+    ItemNotInInventory,
 
     #[error("Too many jewelries equipped. Unequip one first")]
     TooManyJewelriesEquipped,

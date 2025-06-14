@@ -3,6 +3,6 @@ cargo run -- shop buy --item dagger
 cargo run -- shop buy --item shortsword
 cargo run -- shop buy --item leather
 cargo run -- character equip --main-hand shortsword
-cargo run -- character equip --off-hand dagger
+cargo run -- character equip --offhand dagger
 cargo run -- character equip --armor leather
 cargo run -- character quest

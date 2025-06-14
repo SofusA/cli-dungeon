@@ -83,3 +83,9 @@ impl From<AbilityScoreBonus> for ArmorPoints {
         Self(*value)
     }
 }
+
+impl Gold {
+    pub fn sell_value(&self) -> Self {
+        Gold::new(**self / 2)
+    }
+}

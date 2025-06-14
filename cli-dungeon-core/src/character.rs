@@ -5,7 +5,7 @@ use cli_dungeon_rules::{
     armor::ArmorType,
     classes::{ClassType, LevelUpChoice},
     jewelry::JewelryType,
-    types::{Gold, HealthPoints, QuestPoint},
+    types::{HealthPoints, QuestPoint},
     weapons::WeaponType,
 };
 use sanitizer::StringSanitizer;
@@ -102,9 +102,7 @@ pub async fn get_character(
     pool: &Pool,
     character_info: &CharacterInfo,
 ) -> Result<Character, GameError> {
-    if !cli_dungeon_database::validate_player(pool, character_info).await? {
-        return Err(GameError::Dead);
-    };
+    validate_player(pool, character_info).await?;
 
     Ok(cli_dungeon_database::get_character(pool, &character_info.id).await?)
 }
@@ -135,7 +133,7 @@ pub async fn equip_main_hand(
         return Err(GameError::WeaponNotInInventory);
     };
 
-    cli_dungeon_database::equip_weapon(pool, character_info.id, parsed_weapon).await;
+    cli_dungeon_database::equip_weapon(pool, &character_info.id, parsed_weapon).await;
 
     Ok(())
 }
@@ -174,7 +172,7 @@ pub async fn equip_jewelry(
 
     equipped.push(parsed_jewelry);
 
-    cli_dungeon_database::update_equipped_jewelry(pool, character_info.id, equipped).await?;
+    cli_dungeon_database::update_equipped_jewelry(pool, &character_info.id, equipped).await?;
 
     Ok(())
 }
@@ -195,9 +193,7 @@ pub async fn unequip_jewelry(
         equipped.remove(index);
     }
 
-    println!("Test: {:?}", equipped);
-
-    cli_dungeon_database::update_equipped_jewelry(pool, character_info.id, equipped).await?;
+    cli_dungeon_database::update_equipped_jewelry(pool, &character_info.id, equipped).await?;
 
     Ok(())
 }
@@ -233,7 +229,7 @@ pub async fn equip_offhand(
         return Err(GameError::WeaponNotInInventory);
     };
 
-    cli_dungeon_database::equip_offhand(pool, character_info.id, parsed_weapon).await;
+    cli_dungeon_database::equip_offhand(pool, &character_info.id, parsed_weapon).await;
 
     Ok(())
 }
@@ -247,9 +243,7 @@ pub async fn equip_armor(
         return Err(GameError::UnknownArmor);
     };
 
-    if !cli_dungeon_database::validate_player(pool, character_info).await? {
-        return Err(GameError::Dead);
-    };
+    validate_player(pool, character_info).await?;
 
     let armor_stats = parsed_armor.to_armor();
     let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
@@ -268,68 +262,18 @@ pub async fn equip_armor(
         return Err(GameError::InsufficientStrength);
     }
 
-    cli_dungeon_database::equip_armor(pool, character_info.id, parsed_armor).await;
+    cli_dungeon_database::equip_armor(pool, &character_info.id, parsed_armor).await;
 
     Ok(())
 }
 
-pub async fn buy(
+pub(crate) async fn validate_player(
     pool: &Pool,
     character_info: &CharacterInfo,
-    item: String,
-) -> Result<(), GameError> {
-    if let Some(weapon) = WeaponType::from_weapon_str(&item) {
-        return buy_weapon(pool, character_info, weapon).await;
-    };
-
-    if let Some(armor) = ArmorType::from_armor_str(&item) {
-        return buy_armor(pool, character_info, armor).await;
-    };
-
-    Err(GameError::UnknownItem)
-}
-
-async fn buy_weapon(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-    weapon: WeaponType,
 ) -> Result<(), GameError> {
     if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };
 
-    let stats = weapon.to_weapon();
-    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
-
-    let new_gold = character.gold - stats.cost;
-    if new_gold < Gold::new(0) {
-        return Err(GameError::InsufficientGold);
-    }
-
-    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
-    cli_dungeon_database::add_weapon_to_inventory(pool, &character_info.id, weapon).await?;
-
-    Ok(())
-}
-
-async fn buy_armor(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-    armor: ArmorType,
-) -> Result<(), GameError> {
-    if !cli_dungeon_database::validate_player(pool, character_info).await? {
-        return Err(GameError::Dead);
-    };
-
-    let stats = armor.to_armor();
-    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
-
-    let new_gold = character.gold - stats.cost;
-    if new_gold < Gold::new(0) {
-        return Err(GameError::InsufficientGold);
-    }
-
-    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
-    cli_dungeon_database::add_armor_to_inventory(pool, &character_info.id, armor).await?;
     Ok(())
 }

@@ -644,6 +644,32 @@ pub async fn add_weapon_to_inventory(
     Ok(())
 }
 
+pub async fn remove_weapon_from_inventory(
+    pool: &Pool,
+    character_id: &i64,
+    weapon: WeaponType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(pool, character_id).await?;
+
+    let mut new_inventory = character.weapon_inventory;
+    if let Some(pos) = new_inventory.iter().position(|w| w == &weapon) {
+        new_inventory.remove(pos);
+    }
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set weapon_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
 pub async fn add_armor_to_inventory(
     pool: &Pool,
     character_id: &i64,
@@ -652,6 +678,31 @@ pub async fn add_armor_to_inventory(
     let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.armor_inventory;
     new_inventory.push(armor);
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set armor_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
+pub async fn remove_armor_from_inventory(
+    pool: &Pool,
+    character_id: &i64,
+    armor: ArmorType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(pool, character_id).await?;
+    let mut new_inventory = character.armor_inventory;
+    if let Some(pos) = new_inventory.iter().position(|w| w == &armor) {
+        new_inventory.remove(pos);
+    }
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -690,6 +741,32 @@ pub async fn add_jewelry_to_inventory(
     Ok(())
 }
 
+pub async fn remove_jewelry_from_inventory(
+    pool: &Pool,
+    character_id: &i64,
+    jewelry: JewelryType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(pool, character_id).await?;
+    let mut new_inventory = character.jewelry_inventory;
+
+    if let Some(pos) = new_inventory.iter().position(|w| w == &jewelry) {
+        new_inventory.remove(pos);
+    }
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set jewelry_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
 pub async fn add_item_to_inventory(
     pool: &Pool,
     character_id: &i64,
@@ -713,7 +790,33 @@ pub async fn add_item_to_inventory(
     Ok(())
 }
 
-pub async fn equip_weapon(pool: &Pool, character_id: i64, weapon: WeaponType) {
+pub async fn remove_item_from_inventory(
+    pool: &Pool,
+    character_id: &i64,
+    item: ItemType,
+) -> Result<(), DatabaseError> {
+    let character = get_character(pool, character_id).await?;
+    let mut new_inventory = character.item_inventory;
+
+    if let Some(pos) = new_inventory.iter().position(|w| w == &item) {
+        new_inventory.remove(pos);
+    }
+
+    let inventory_json = to_string(&new_inventory).unwrap();
+
+    let result = sqlx::query!(
+        "update characters set item_inventory = $2 where rowid = $1",
+        character_id,
+        inventory_json
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+    Ok(())
+}
+
+pub async fn equip_weapon(pool: &Pool, character_id: &i64, weapon: WeaponType) {
     let weapon_json = to_string(&weapon).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_weapon = $2 where rowid = $1",
@@ -726,9 +829,42 @@ pub async fn equip_weapon(pool: &Pool, character_id: i64, weapon: WeaponType) {
     result.unwrap();
 }
 
+pub async fn unequip_weapon(pool: &Pool, character_id: &i64) {
+    let result = sqlx::query!(
+        r#"update characters set equipped_weapon = null where rowid = $1"#,
+        character_id,
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn unequip_offhand(pool: &Pool, character_id: &i64) {
+    let result = sqlx::query!(
+        r#"update characters set equipped_offhand = null where rowid = $1"#,
+        character_id,
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
+pub async fn unequip_armor(pool: &Pool, character_id: &i64) {
+    let result = sqlx::query!(
+        r#"update characters set equipped_armor = null where rowid = $1"#,
+        character_id,
+    )
+    .execute(pool)
+    .await;
+
+    result.unwrap();
+}
+
 pub async fn update_equipped_jewelry(
     pool: &Pool,
-    character_id: i64,
+    character_id: &i64,
     jewelry: Vec<JewelryType>,
 ) -> Result<(), DatabaseError> {
     let jewelry_json = to_string(&jewelry).unwrap();
@@ -745,7 +881,7 @@ pub async fn update_equipped_jewelry(
     Ok(())
 }
 
-pub async fn equip_offhand(pool: &Pool, character_id: i64, weapon: WeaponType) {
+pub async fn equip_offhand(pool: &Pool, character_id: &i64, weapon: WeaponType) {
     let weapon_json = to_string(&weapon).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_offhand = $2 where rowid = $1",
@@ -758,7 +894,7 @@ pub async fn equip_offhand(pool: &Pool, character_id: i64, weapon: WeaponType) {
     result.unwrap();
 }
 
-pub async fn equip_armor(pool: &Pool, character_id: i64, armor: ArmorType) {
+pub async fn equip_armor(pool: &Pool, character_id: &i64, armor: ArmorType) {
     let armor_json = to_string(&armor).unwrap();
     let result = sqlx::query!(
         "update characters set equipped_armor = $2 where rowid = $1",

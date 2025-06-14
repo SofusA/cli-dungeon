@@ -220,7 +220,7 @@ impl Character {
         }
     }
 
-    pub fn off_hand_attack_stats(&self) -> AttackStats {
+    pub fn offhand_attack_stats(&self) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
 
@@ -283,7 +283,7 @@ impl Character {
             .as_ref()
             .map(|weapon| weapon.to_weapon().armor_bonus)
             .unwrap_or(ArmorPoints::new(0));
-        let off_hand_bonus = self
+        let offhand_bonus = self
             .equipped_offhand
             .as_ref()
             .map(|weapon| weapon.to_weapon().armor_bonus)
@@ -297,12 +297,7 @@ impl Character {
                 .sum(),
         );
 
-        base_armor
-            + armor_bonus
-            + dexterity_bonus
-            + main_hand_bonus
-            + off_hand_bonus
-            + jewelry_bonus
+        base_armor + armor_bonus + dexterity_bonus + main_hand_bonus + offhand_bonus + jewelry_bonus
     }
 
     pub fn attacked(&mut self, attack_stats: &AttackStats) -> Option<Hit> {

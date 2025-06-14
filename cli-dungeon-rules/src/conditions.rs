@@ -2,7 +2,7 @@ use crate::types::{ArmorPoints, Strength, Turn};
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub struct ActiveCondition {
-    pub duration: Turn,
+    pub duration: Option<Turn>,
     pub condition_type: ConditionType,
 }
 
