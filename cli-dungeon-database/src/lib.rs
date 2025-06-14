@@ -39,10 +39,9 @@ pub async fn get_pool() -> Pool {
         .filename(database_url)
         .create_if_missing(true);
 
-     sqlx::SqlitePool::connect_with(options)
+    sqlx::SqlitePool::connect_with(options)
         .await
         .expect("failed to open database")
-    
 }
 
 pub async fn init(pool: &Pool) {
@@ -50,7 +49,6 @@ pub async fn init(pool: &Pool) {
         .run(pool)
         .await
         .expect("migration failed");
-
 }
 
 #[derive(Debug, sqlx::FromRow)]
@@ -134,7 +132,11 @@ pub struct CharacterInfo {
     secret: i64,
 }
 
-pub async fn create_player_character(pool: &Pool, name: &str, ability_scores: AbilityScores) -> CharacterInfo {
+pub async fn create_player_character(
+    pool: &Pool,
+    name: &str,
+    ability_scores: AbilityScores,
+) -> CharacterInfo {
     let party_id = create_party(pool).await;
 
     let base_ability_scores_serialized = to_string(&ability_scores).unwrap();
@@ -158,9 +160,24 @@ pub async fn create_player_character(pool: &Pool, name: &str, ability_scores: Ab
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, base_ability_scores, current_health, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, equipped_jewelry, status, party_id, short_rests, active_conditions)
+            insert into characters (secret,
+            name,
+            player,
+            gold,
+            base_ability_scores,
+            current_health,
+            weapon_inventory,
+            armor_inventory,
+            jewelry_inventory,
+            item_inventory,
+            level_up_choices,
+            equipped_jewelry,
+            status,
+            party_id,
+            short_rests,
+            active_conditions)
             values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-        "#,
+            "#,
         secret,
         name,
         true,
@@ -189,15 +206,14 @@ pub async fn create_player_character(pool: &Pool, name: &str, ability_scores: Ab
 }
 
 pub async fn create_encounter(pool: &Pool, rotation: Vec<i64>) -> i64 {
-
     let rotation_json = to_string(&rotation).unwrap();
     let dead_characters: Vec<i64> = vec![];
     let dead_characters_json = to_string(&dead_characters).unwrap();
 
     let result = sqlx::query!(
         r#"
-            insert into encounters (rotation, dead_characters) values ($1, $2);
-        "#,
+                insert into encounters (rotation, dead_characters) values ($1, $2);
+            "#,
         rotation_json,
         dead_characters_json
     )
@@ -209,15 +225,14 @@ pub async fn create_encounter(pool: &Pool, rotation: Vec<i64>) -> i64 {
 }
 
 pub async fn update_encounter(pool: &Pool, encounter_id: i64, rotation: Vec<i64>, dead: Vec<i64>) {
-
     let rotation_json = to_string(&rotation).unwrap();
     let dead_json = to_string(&dead).unwrap();
 
     let result = sqlx::query!(
         r#"
-        update encounters
-        set rotation = $2, dead_characters = $3
-        where rowid = $1"#,
+            update encounters
+            set rotation = $2, dead_characters = $3
+            where rowid = $1"#,
         encounter_id,
         rotation_json,
         dead_json
@@ -228,13 +243,12 @@ pub async fn update_encounter(pool: &Pool, encounter_id: i64, rotation: Vec<i64>
     result.unwrap();
 }
 
-pub async fn create_party(pool: &Pool ) -> i64 {
-
+pub async fn create_party(pool: &Pool) -> i64 {
     let result = sqlx::query!(
         r#"
-            update party_counter set value = value + 1;
-            select value from party_counter;
-        "#,
+                update party_counter set value = value + 1;
+                select value from party_counter;
+            "#,
     )
     .fetch_one(pool)
     .await
@@ -280,7 +294,26 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
 
     let result = sqlx::query!(
         r#"
-            insert into characters (secret, name, player, gold, experience, base_ability_scores, current_health, equipped_weapon, equipped_offhand, equipped_armor, equipped_jewelry, weapon_inventory, armor_inventory, jewelry_inventory, item_inventory, level_up_choices, status, party_id, active_conditions)
+            insert into characters (
+            secret,
+            name,
+            player,
+            gold,
+            experience,
+            base_ability_scores,
+            current_health,
+            equipped_weapon,
+            equipped_offhand,
+            equipped_armor,
+            equipped_jewelry,
+            weapon_inventory,
+            armor_inventory,
+            jewelry_inventory,
+            item_inventory,
+            level_up_choices,
+            status,
+            party_id,
+            active_conditions)
             values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
         "#,
         secret,
@@ -302,7 +335,6 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
         status_json,
         party_id,
         active_conditions_json
-        
     )
     .execute(pool)
     .await
@@ -315,11 +347,11 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
 }
 
 pub async fn set_active_character(pool: &Pool, character: &CharacterInfo) {
-   sqlx::query!(
+    sqlx::query!(
         r#"
-        update active_character
-        set id=$1, secret = $2
-        "#,
+            update active_character
+            set id=$1, secret = $2
+            "#,
         character.id,
         character.secret
     )
@@ -328,13 +360,12 @@ pub async fn set_active_character(pool: &Pool, character: &CharacterInfo) {
     .unwrap();
 }
 
-pub async fn get_active_character(pool: &Pool ) -> Result<CharacterInfo, DatabaseError> {
-
+pub async fn get_active_character(pool: &Pool) -> Result<CharacterInfo, DatabaseError> {
     let result = sqlx::query_as!(
         CharacterInfo,
         r#"
-        select id, secret from active_character limit 1
-        "#
+            select id, secret from active_character limit 1
+            "#
     )
     .fetch_optional(pool)
     .await;
@@ -345,7 +376,10 @@ pub async fn get_active_character(pool: &Pool ) -> Result<CharacterInfo, Databas
     }
 }
 
-pub async fn validate_player(pool: &Pool, character_info: &CharacterInfo) -> Result<bool, DatabaseError> {
+pub async fn validate_player(
+    pool: &Pool,
+    character_info: &CharacterInfo,
+) -> Result<bool, DatabaseError> {
     let character = get_character_row(pool, &character_info.id).await?;
     if character.secret != character_info.secret {
         return Err(DatabaseError::WrongSecret);
@@ -375,35 +409,34 @@ pub async fn get_character(pool: &Pool, id: &i64) -> Result<Character, DatabaseE
 }
 
 async fn get_character_row(pool: &Pool, id: &i64) -> Result<CharacterRow, DatabaseError> {
-
     let result = sqlx::query_as!(
         CharacterRow,
         r#"
-        select
-        rowid,
-        name,
-        secret,
-        player,
-        gold,
-        experience,
-        base_ability_scores as "base_ability_scores: Json<AbilityScores>",
-        current_health,
-        equipped_weapon as "equipped_weapon: Json<WeaponType>",
-        equipped_offhand as "equipped_offhand: Json<WeaponType>",
-        equipped_armor as "equipped_armor: Json<ArmorType>",
-        equipped_jewelry as "equipped_jewelry: Json<Vec<JewelryType>>",
-        weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
-        armor_inventory as "armor_inventory: Json<Vec<ArmorType>>",
-        jewelry_inventory as "jewelry_inventory: Json<Vec<JewelryType>>",
-        item_inventory as "item_inventory: Json<Vec<ItemType>>",
-        level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>",
-        active_conditions as "active_conditions: Json<Vec<ActiveCondition>>",
-        short_rests,
-        quest_points,
-        encounter_id,
-        party_id,
-        status as "status: Json<DbStatus>"
-        from characters where rowid = $1"#,
+            select
+            rowid,
+            name,
+            secret,
+            player,
+            gold,
+            experience,
+            base_ability_scores as "base_ability_scores: Json<AbilityScores>",
+            current_health,
+            equipped_weapon as "equipped_weapon: Json<WeaponType>",
+            equipped_offhand as "equipped_offhand: Json<WeaponType>",
+            equipped_armor as "equipped_armor: Json<ArmorType>",
+            equipped_jewelry as "equipped_jewelry: Json<Vec<JewelryType>>",
+            weapon_inventory as "weapon_inventory: Json<Vec<WeaponType>>",
+            armor_inventory as "armor_inventory: Json<Vec<ArmorType>>",
+            jewelry_inventory as "jewelry_inventory: Json<Vec<JewelryType>>",
+            item_inventory as "item_inventory: Json<Vec<ItemType>>",
+            level_up_choices as "level_up_choices: Json<Vec<LevelUpChoice>>",
+            active_conditions as "active_conditions: Json<Vec<ActiveCondition>>",
+            short_rests,
+            quest_points,
+            encounter_id,
+            party_id,
+            status as "status: Json<DbStatus>"
+            from characters where rowid = $1"#,
         id
     )
     .fetch_one(pool)
@@ -423,15 +456,14 @@ struct EncounterRow {
 }
 
 pub async fn get_encounter(pool: &Pool, id: &i64) -> Result<Encounter, DatabaseError> {
-
     let result = sqlx::query_as!(
         EncounterRow,
         r#"
-        select
-        rotation as "rotation: Json<Vec<i64>>",
-        dead_characters as "dead_characters: Json<Vec<i64>>",
-        rowid
-        from encounters where rowid = $1"#,
+            select
+            rotation as "rotation: Json<Vec<i64>>",
+            dead_characters as "dead_characters: Json<Vec<i64>>",
+            rowid
+            from encounters where rowid = $1"#,
         id
     )
     .fetch_one(pool)
@@ -466,7 +498,6 @@ pub async fn get_encounter(pool: &Pool, id: &i64) -> Result<Encounter, DatabaseE
 }
 
 pub async fn set_character_status(pool: &Pool, id: &i64, status: Status) {
-
     if !matches!(status, Status::Fighting(_)) {
         set_encounter_id(pool, id, None).await;
     }
@@ -514,7 +545,6 @@ pub async fn set_character_short_rests(pool: &Pool, id: &i64, short_rests: u16) 
 }
 
 pub async fn set_character_quest_points(pool: &Pool, id: &i64, quest_points: QuestPoint) {
-
     let result = sqlx::query!(
         "update characters set quest_points = $2 where rowid = $1",
         id,
@@ -539,10 +569,10 @@ pub async fn set_character_gold(pool: &Pool, id: &i64, gold: Gold) {
 }
 
 pub async fn set_character_conditions(
- pool: &Pool,    character_id: i64,
+    pool: &Pool,
+    character_id: &i64,
     conditions: Vec<ActiveCondition>,
-)  {
-
+) {
     let conditions_json = to_string(&conditions).unwrap();
 
     let result = sqlx::query!(
@@ -557,7 +587,6 @@ pub async fn set_character_conditions(
 }
 
 pub async fn set_character_experience(pool: &Pool, id: &i64, experience: Experience) {
-
     let result = sqlx::query!(
         "update characters set experience = $2 where rowid = $1",
         id,
@@ -570,7 +599,8 @@ pub async fn set_character_experience(pool: &Pool, id: &i64, experience: Experie
 }
 
 pub async fn add_level_up_choice(
-    pool: &Pool, character_id: &i64,
+    pool: &Pool,
+    character_id: &i64,
     choice: LevelUpChoice,
 ) -> Result<(), DatabaseError> {
     let character = get_character(pool, character_id).await?;
@@ -592,13 +622,13 @@ pub async fn add_level_up_choice(
 }
 
 pub async fn add_weapon_to_inventory(
- pool: &Pool,    character_id: &i64,
+    pool: &Pool,
+    character_id: &i64,
     weapon: WeaponType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.weapon_inventory;
     new_inventory.push(weapon);
-
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -615,13 +645,13 @@ pub async fn add_weapon_to_inventory(
 }
 
 pub async fn add_armor_to_inventory(
- pool: &Pool,    character_id: &i64,
+    pool: &Pool,
+    character_id: &i64,
     armor: ArmorType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.armor_inventory;
     new_inventory.push(armor);
-
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -638,7 +668,8 @@ pub async fn add_armor_to_inventory(
 }
 
 pub async fn add_jewelry_to_inventory(
- pool: &Pool,    character_id: &i64,
+    pool: &Pool,
+    character_id: &i64,
     jewelry: JewelryType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(pool, character_id).await?;
@@ -660,13 +691,13 @@ pub async fn add_jewelry_to_inventory(
 }
 
 pub async fn add_item_to_inventory(
- pool: &Pool,    character_id: &i64,
+    pool: &Pool,
+    character_id: &i64,
     item: ItemType,
 ) -> Result<(), DatabaseError> {
     let character = get_character(pool, character_id).await?;
     let mut new_inventory = character.item_inventory;
     new_inventory.push(item);
-
 
     let inventory_json = to_string(&new_inventory).unwrap();
 
@@ -696,7 +727,8 @@ pub async fn equip_weapon(pool: &Pool, character_id: i64, weapon: WeaponType) {
 }
 
 pub async fn update_equipped_jewelry(
-    pool: &Pool, character_id: i64,
+    pool: &Pool,
+    character_id: i64,
     jewelry: Vec<JewelryType>,
 ) -> Result<(), DatabaseError> {
     let jewelry_json = to_string(&jewelry).unwrap();
@@ -746,4 +778,3 @@ pub async fn delete_character(pool: &Pool, id: i64) {
 
     result.unwrap();
 }
-

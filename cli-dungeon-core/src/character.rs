@@ -39,6 +39,8 @@ pub async fn rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), Gam
     cli_dungeon_database::set_character_status(pool, &character.id, Status::Resting).await;
     cli_dungeon_database::set_character_quest_points(pool, &character.id, QuestPoint::new(0)).await;
     cli_dungeon_database::set_character_health(pool, &character.id, character.max_health()).await;
+    cli_dungeon_database::set_character_conditions(pool, &character.id, vec![]).await;
+
     Ok(())
 }
 

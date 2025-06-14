@@ -1,6 +1,6 @@
 use std::io::Write;
 
-use cli_dungeon_core::{Action, BonusAction, TurnOutcome, take_turn};
+use cli_dungeon_core::turn::{Action, BonusAction, TurnOutcome, take_turn};
 use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{Encounter, items::ActionType};
 use color_print::{cprint, cprintln};
@@ -237,22 +237,22 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
 pub fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
     for outcome in outcome {
         match outcome {
-            cli_dungeon_core::TurnOutcome::Miss(character_name) => {
+            TurnOutcome::Miss(character_name) => {
                 cprintln!("<yellow>{} missed</>", character_name)
             }
-            cli_dungeon_core::TurnOutcome::Attack(attack) => {
+            TurnOutcome::Attack(attack) => {
                 println!("{} attacked {}", attack.attacker_name, attack.attacked_name)
             }
-            cli_dungeon_core::TurnOutcome::Hit(hit) => {
+            TurnOutcome::Hit(hit) => {
                 if hit.critical_hit {
                     cprint!("<red>Critical hit!</> ");
                 }
                 println!("{} took {} damage", hit.character_name, hit.damage);
             }
-            cli_dungeon_core::TurnOutcome::Death(character_name) => {
+            TurnOutcome::Death(character_name) => {
                 cprintln!("<red>{} died</>", character_name)
             }
-            cli_dungeon_core::TurnOutcome::StartTurn(character_name) => {
+            TurnOutcome::StartTurn(character_name) => {
                 cprintln!("<green>It is {}'s turn!</>", character_name)
             }
         }
