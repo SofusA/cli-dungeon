@@ -3,7 +3,8 @@ use crate::types::{Constitution, Dexterity, Strength};
 pub enum AbilityScaling {
     Strength,
     Dexterity,
-    Either,
+    Versatile,
+    Intelligence,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Copy, serde::Deserialize, serde::Serialize)]

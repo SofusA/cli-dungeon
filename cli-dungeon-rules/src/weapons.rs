@@ -68,7 +68,7 @@ impl WeaponType {
                 name: self.to_name(),
                 cost: Gold::new(50),
                 attack_stats: WeaponAttackStats {
-                    primary_ability: AbilityScaling::Either,
+                    primary_ability: AbilityScaling::Versatile,
                     hit_bonus: AbilityScoreBonus::new(0),
                     attack_dices: vec![Dice::D6],
                     attack_bonus: AbilityScoreBonus::new(0),

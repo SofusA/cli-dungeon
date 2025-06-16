@@ -215,33 +215,32 @@ async fn main() -> Result<()> {
                         .map(|armor| armor.to_armor().name)
                         .unwrap_or("Unequipped".to_string())
                 );
-                cprintln!(
-                    "Inventory: {} {} {} {}",
-                    character
-                        .weapon_inventory
-                        .iter()
-                        .map(|weapon| weapon.to_weapon().name)
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                    character
-                        .armor_inventory
-                        .iter()
-                        .map(|armor| armor.to_armor().name)
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                    character
-                        .jewelry_inventory
-                        .iter()
-                        .map(|jewelry| jewelry.to_jewelry().name)
-                        .collect::<Vec<_>>()
-                        .join(" "),
-                    character
-                        .item_inventory
-                        .iter()
-                        .map(|item| item.to_item().name)
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                );
+
+                let combined_inventory: Vec<String> = character
+                    .weapon_inventory
+                    .iter()
+                    .map(|weapon| weapon.to_weapon().name)
+                    .chain(
+                        character
+                            .armor_inventory
+                            .iter()
+                            .map(|armor| armor.to_armor().name),
+                    )
+                    .chain(
+                        character
+                            .jewelry_inventory
+                            .iter()
+                            .map(|jewelry| jewelry.to_jewelry().name),
+                    )
+                    .chain(
+                        character
+                            .item_inventory
+                            .iter()
+                            .map(|item| item.to_item().name),
+                    )
+                    .collect();
+
+                cprintln!("Inventory: {}", combined_inventory.join(" "));
             }
             CharacterCommands::Equip {
                 main_hand,
@@ -338,30 +337,17 @@ async fn main() -> Result<()> {
                     handle_encounter(&pool, &character_info).await;
                 }
                 cli_dungeon_core::PlayOutcome::CompletedQuest(loot) => {
+                    let combined_loot: Vec<String> = loot
+                        .weapons
+                        .iter()
+                        .map(|weapon| weapon.to_weapon().name)
+                        .chain(loot.armor.iter().map(|armor| armor.to_armor().name))
+                        .chain(loot.jewelry.iter().map(|jewelry| jewelry.to_jewelry().name))
+                        .chain(loot.items.iter().map(|item| item.to_item().name))
+                        .collect();
+
                     cprintln!("<blue>Quest completed!</>");
-                    cprintln!(
-                        "Loot: {} {} {} {}",
-                        loot.weapons
-                            .iter()
-                            .map(|weapon| weapon.to_weapon().name)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        loot.armor
-                            .iter()
-                            .map(|armor| armor.to_armor().name)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        loot.jewelry
-                            .iter()
-                            .map(|jewelry| jewelry.to_jewelry().name)
-                            .collect::<Vec<_>>()
-                            .join(" "),
-                        loot.items
-                            .iter()
-                            .map(|item| item.to_item().name)
-                            .collect::<Vec<_>>()
-                            .join(" ")
-                    );
+                    cprintln!("Loot: {}", combined_loot.join(" "));
                 }
             }
         }
@@ -595,5 +581,9 @@ mod tests {
         // - weapons: check unequip
         // - armor: check unequip
         // TODO: Assert the looooot (completed quest)
+        // TODO: Assert use item
+        // - spell condition
+        // - spell projectile
+        // - thrown
     }
 }

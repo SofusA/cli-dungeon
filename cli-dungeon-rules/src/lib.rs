@@ -10,6 +10,8 @@ use types::{
 };
 use weapons::WeaponType;
 
+use crate::weapons::WeaponAttackStats;
+
 pub mod abilities;
 pub mod armor;
 pub mod classes;
@@ -132,6 +134,12 @@ pub fn experience_gain(level: Level) -> Experience {
     }
 }
 
+pub enum CharacterWeapon {
+    Mainhand,
+    Offhand,
+    Thrown(WeaponAttackStats),
+}
+
 impl Character {
     pub fn ability_scores(&self) -> AbilityScores {
         let base_ability_scores = &self.base_ability_scores;
@@ -187,45 +195,44 @@ impl Character {
         max_health(&self.ability_scores().constitution, self.level())
     }
 
-    pub fn attack_stats(&self) -> AttackStats {
+    pub fn spell_stats(&self, spell_stats: WeaponAttackStats) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
 
-        let Some(weapon) = &self.equipped_weapon else {
-            let ability_bonus = match **dex < **str {
-                true => str.ability_score_bonus(),
-                false => dex.ability_score_bonus(),
-            };
-            return AttackStats {
-                attack_dice: vec![Dice::D4],
-                attack_bonus: ability_bonus,
-                hit_bonus: ability_bonus,
-            };
-        };
-
-        let ability_bonus = match weapon.to_weapon().attack_stats.primary_ability {
+        let ability_bonus = match spell_stats.primary_ability {
             AbilityScaling::Strength => str.ability_score_bonus(),
             AbilityScaling::Dexterity => dex.ability_score_bonus(),
-            AbilityScaling::Either => match **dex < **str {
+            AbilityScaling::Versatile => match **dex < **str {
                 true => str.ability_score_bonus(),
                 false => dex.ability_score_bonus(),
             },
+            AbilityScaling::Intelligence => AbilityScoreBonus::new(0),
         };
 
-        let attack_dice = weapon.to_weapon().attack_stats.attack_dices;
+        let attack_dice = spell_stats.attack_dices;
 
         AttackStats {
             attack_dice,
-            attack_bonus: ability_bonus + weapon.to_weapon().attack_stats.attack_bonus,
+            attack_bonus: ability_bonus + spell_stats.attack_bonus,
             hit_bonus: ability_bonus,
         }
     }
 
-    pub fn offhand_attack_stats(&self) -> AttackStats {
+    pub fn attack_stats(&self, weapon: CharacterWeapon) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
 
-        let Some(weapon) = &self.equipped_offhand else {
+        let weapon = match weapon {
+            CharacterWeapon::Mainhand => self
+                .equipped_weapon
+                .map(|weapon| weapon.to_weapon().attack_stats),
+            CharacterWeapon::Offhand => self
+                .equipped_offhand
+                .map(|weapon| weapon.to_weapon().attack_stats),
+            CharacterWeapon::Thrown(weapon_attack_stats) => Some(weapon_attack_stats),
+        };
+
+        let Some(weapon) = weapon else {
             let ability_bonus = match **dex < **str {
                 true => str.ability_score_bonus(),
                 false => dex.ability_score_bonus(),
@@ -237,20 +244,19 @@ impl Character {
             };
         };
 
-        let ability_bonus = match weapon.to_weapon().attack_stats.primary_ability {
+        let ability_bonus = match weapon.primary_ability {
             AbilityScaling::Strength => str.ability_score_bonus(),
             AbilityScaling::Dexterity => dex.ability_score_bonus(),
-            AbilityScaling::Either => match **dex < **str {
+            AbilityScaling::Versatile => match **dex < **str {
                 true => str.ability_score_bonus(),
                 false => dex.ability_score_bonus(),
             },
+            AbilityScaling::Intelligence => AbilityScoreBonus::new(0),
         };
 
-        let attack_dice = weapon.to_weapon().attack_stats.attack_dices;
-
         AttackStats {
-            attack_dice,
-            attack_bonus: ability_bonus + weapon.to_weapon().attack_stats.attack_bonus,
+            attack_dice: weapon.attack_dices,
+            attack_bonus: ability_bonus + weapon.attack_bonus,
             hit_bonus: ability_bonus,
         }
     }

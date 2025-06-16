@@ -61,11 +61,11 @@ pub async fn play(
         return Ok(PlayOutcome::CompletedQuest(loot));
     }
 
-    if let Status::Questing = character.status {
-        if roll(&Dice::D20) == 4 || force {
-            let outcome = new_encounter(pool, character_info.id).await;
-            return Ok(PlayOutcome::NewFight(outcome));
-        }
+    if let Status::Questing = character.status
+        && (roll(&Dice::D20) == 4 || force)
+    {
+        let outcome = new_encounter(pool, character_info.id).await;
+        return Ok(PlayOutcome::NewFight(outcome));
     }
 
     cli_dungeon_database::set_character_quest_points(

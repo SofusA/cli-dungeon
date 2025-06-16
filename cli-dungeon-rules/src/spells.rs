@@ -18,8 +18,12 @@ pub enum SpellAction {
 
 pub struct Spell {
     pub name: String,
-    pub action: Option<SpellAction>,
-    pub bonus_action: Option<SpellAction>,
+    pub action: SpellActionType,
+}
+
+pub enum SpellActionType {
+    Action(SpellAction),
+    BonusAction(SpellAction),
 }
 
 impl SpellType {
@@ -37,12 +41,17 @@ impl SpellType {
         match self {
             SpellType::Weaken => Spell {
                 name: self.to_name(),
-                action: Some(SpellAction::Condition(ActiveCondition {
+                action: SpellActionType::Action(SpellAction::Condition(ActiveCondition {
                     duration: Some(Turn::new(2)),
                     condition_type: ConditionType::Weaken,
                 })),
-                bonus_action: None,
             },
+        }
+    }
+
+    pub fn spell_action(&self) -> SpellAction {
+        match self.to_spell().action {
+            SpellActionType::Action(action) | SpellActionType::BonusAction(action) => action,
         }
     }
 }

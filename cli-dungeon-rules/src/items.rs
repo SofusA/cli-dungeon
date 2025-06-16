@@ -1,7 +1,7 @@
 use crate::{
     Dice,
     abilities::AbilityScaling,
-    spells::SpellType,
+    spells::{SpellAction, SpellType},
     types::{AbilityScoreBonus, Gold, HealthPoints},
     weapons::WeaponAttackStats,
 };
@@ -27,7 +27,7 @@ pub struct Item {
 }
 
 pub enum ItemAction {
-    Spell(SpellType),
+    Spell(SpellAction),
     Projectile(WeaponAttackStats),
     Healing(HealthPoints),
 }
@@ -68,7 +68,7 @@ impl ItemType {
             ItemType::ScrollOfWeaken => Item {
                 name: self.to_name(),
                 cost: Gold::new(1000),
-                action: ActionType::Action(ItemAction::Spell(SpellType::Weaken)),
+                action: ActionType::Action(ItemAction::Spell(SpellType::Weaken.spell_action())),
             },
             ItemType::MinorHealingPotion => Item {
                 name: self.to_name(),
