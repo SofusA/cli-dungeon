@@ -35,15 +35,14 @@ pub(crate) async fn advance_turn(pool: &Pool, character: &Character) {
     cli_dungeon_database::set_character_conditions(pool, &character.id, new_conditions).await;
 }
 
-#[derive(Clone)]
 pub enum Action {
     Attack(i64),
-    Item(ItemType),
-    ItemWithTarget(ItemType, i64),
+    Item(ItemAction),
+    ItemWithTarget(ItemAction, i64),
 }
 
 pub enum BonusAction {
-    OffHandAttack(i64),
+    OffhandAttack(i64),
     Item(ItemAction),
     ItemWithTarget(ItemAction, i64),
 }
@@ -61,7 +60,7 @@ pub(crate) async fn monster_take_turn(
         .choose(&mut rand::rng());
 
     let action = target.map(Action::Attack);
-    let bonus_action = target.map(BonusAction::OffHandAttack);
+    let bonus_action = target.map(BonusAction::OffhandAttack);
 
     character_take_turn(pool, monster, encounter, action, bonus_action).await
 }
@@ -162,91 +161,80 @@ async fn character_take_turn(
                 outcome_list.append(&mut outcome);
             }
             Action::Item(item) => {
-                if let cli_dungeon_rules::items::ActionType::Action(item_action) =
-                    item.to_item().action
-                {
-                    match item_action {
-                        cli_dungeon_rules::items::ItemAction::Spell(spell_type) => {
-                            match spell_type {
-                                SpellAction::Condition(active_condition) => {
-                                    cli_dungeon_database::set_character_conditions(
-                                        pool,
-                                        &active_character.id,
-                                        vec![active_condition],
-                                    )
-                                    .await;
-                                    // TODO: Add to outcome
-                                }
-                                SpellAction::Projectile(_) => (),
+                match item {
+                    cli_dungeon_rules::items::ItemAction::Spell(spell_type) => {
+                        match spell_type {
+                            SpellAction::Condition(active_condition) => {
+                                cli_dungeon_database::set_character_conditions(
+                                    pool,
+                                    &active_character.id,
+                                    vec![active_condition],
+                                )
+                                .await;
+                                // TODO: Add to outcome
                             }
+                            SpellAction::Projectile(_) => (),
                         }
-                        cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                            let new_health = active_character.current_health + health_points;
-                            cli_dungeon_database::set_character_health(
-                                pool,
-                                &active_character.id,
-                                new_health,
-                            )
-                            .await;
-                            // TODO: Add to outcome
-                        }
-                        cli_dungeon_rules::items::ItemAction::Projectile(_) => (),
                     }
+                    cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
+                        let new_health = active_character.current_health + health_points;
+                        cli_dungeon_database::set_character_health(
+                            pool,
+                            &active_character.id,
+                            new_health,
+                        )
+                        .await;
+                        // TODO: Add to outcome
+                    }
+                    cli_dungeon_rules::items::ItemAction::Projectile(_) => (),
                 }
             }
             Action::ItemWithTarget(item, target) => {
-                if let cli_dungeon_rules::items::ActionType::Action(item_action) =
-                    item.to_item().action
-                {
-                    match item_action {
-                        cli_dungeon_rules::items::ItemAction::Spell(spell_type) => {
-                            match spell_type {
-                                SpellAction::Condition(active_condition) => {
-                                    cli_dungeon_database::set_character_conditions(
-                                        pool,
-                                        &target,
-                                        vec![active_condition],
-                                    )
-                                    .await;
-                                    // TODO: Add to outcome
-                                }
-                                SpellAction::Projectile(attack_stats) => {
-                                    let attack = active_character.spell_stats(attack_stats);
-                                    let mut outcome = handle_attack(
-                                        pool,
-                                        active_character,
-                                        &attack,
-                                        target,
-                                        &mut new_rotation,
-                                        &mut new_dead_list,
-                                    )
-                                    .await;
-                                    outcome_list.append(&mut outcome);
-                                }
+                match item {
+                    cli_dungeon_rules::items::ItemAction::Spell(spell_type) => {
+                        match spell_type {
+                            SpellAction::Condition(active_condition) => {
+                                cli_dungeon_database::set_character_conditions(
+                                    pool,
+                                    &target,
+                                    vec![active_condition],
+                                )
+                                .await;
+                                // TODO: Add to outcome
+                            }
+                            SpellAction::Projectile(attack_stats) => {
+                                let attack = active_character.spell_stats(attack_stats);
+                                let mut outcome = handle_attack(
+                                    pool,
+                                    active_character,
+                                    &attack,
+                                    target,
+                                    &mut new_rotation,
+                                    &mut new_dead_list,
+                                )
+                                .await;
+                                outcome_list.append(&mut outcome);
                             }
                         }
-                        cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                            let new_health = active_character.current_health + health_points;
-                            cli_dungeon_database::set_character_health(pool, &target, new_health)
-                                .await;
-                            // TODO: Add to outcome
-                        }
-                        cli_dungeon_rules::items::ItemAction::Projectile(
-                            projectile_attack_stats,
-                        ) => {
-                            let attack = active_character
-                                .attack_stats(CharacterWeapon::Thrown(projectile_attack_stats));
-                            let mut outcome = handle_attack(
-                                pool,
-                                active_character,
-                                &attack,
-                                target,
-                                &mut new_rotation,
-                                &mut new_dead_list,
-                            )
-                            .await;
-                            outcome_list.append(&mut outcome);
-                        }
+                    }
+                    cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
+                        let new_health = active_character.current_health + health_points;
+                        cli_dungeon_database::set_character_health(pool, &target, new_health).await;
+                        // TODO: Add to outcome
+                    }
+                    cli_dungeon_rules::items::ItemAction::Projectile(projectile_attack_stats) => {
+                        let attack = active_character
+                            .attack_stats(CharacterWeapon::Thrown(projectile_attack_stats));
+                        let mut outcome = handle_attack(
+                            pool,
+                            active_character,
+                            &attack,
+                            target,
+                            &mut new_rotation,
+                            &mut new_dead_list,
+                        )
+                        .await;
+                        outcome_list.append(&mut outcome);
                     }
                 }
             }
@@ -255,7 +243,7 @@ async fn character_take_turn(
 
     if let Some(action) = bonus_action {
         match action {
-            BonusAction::OffHandAttack(target) => {
+            BonusAction::OffhandAttack(target) => {
                 let mut outcome = handle_attack(
                     pool,
                     active_character,

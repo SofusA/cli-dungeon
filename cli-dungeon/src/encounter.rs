@@ -2,7 +2,7 @@ use std::io::Write;
 
 use cli_dungeon_core::turn::{Action, BonusAction, TurnOutcome, take_turn};
 use cli_dungeon_database::{CharacterInfo, Pool};
-use cli_dungeon_rules::{Encounter, items::ActionType};
+use cli_dungeon_rules::{Encounter, character::Character, items::ActionType};
 use color_print::{cprint, cprintln};
 use rhai::{CustomType, Dynamic, Engine, ImmutableString, Map, Scope, TypeBuilder};
 
@@ -103,18 +103,44 @@ impl EncounterAction {
         builder.with_fn("react", EncounterAction::new_bonus_action_no_target);
     }
 
-    fn to_action(&self) -> Option<Action> {
-        match self.action.as_str() {
-            "attack" => self.action_target.map(Action::Attack),
-            _ => None,
-        }
+    fn to_action(&self, character: &Character) -> Option<Action> {
+        character
+            .available_actions()
+            .into_iter()
+            .find(|action| action.name == self.action)
+            .and_then(|action| match action.action {
+                cli_dungeon_rules::character::AvailableAction::Attack => {
+                    self.action_target.map(Action::Attack)
+                }
+                cli_dungeon_rules::character::AvailableAction::Item(item_action) => {
+                    match action.requires_target {
+                        true => self
+                            .action_target
+                            .map(|target| Action::ItemWithTarget(item_action, target)),
+                        false => Some(Action::Item(item_action)),
+                    }
+                }
+            })
     }
 
-    fn to_bonus_action(&self) -> Option<BonusAction> {
-        match self.bonus_action.as_str() {
-            "attack" => self.bonus_action_target.map(BonusAction::OffHandAttack),
-            _ => None,
-        }
+    fn to_bonus_action(&self, character: &Character) -> Option<BonusAction> {
+        character
+            .available_bonus_actions()
+            .into_iter()
+            .find(|action| action.name == self.action)
+            .and_then(|action| match action.action {
+                cli_dungeon_rules::character::AvailableAction::Attack => {
+                    self.action_target.map(BonusAction::OffhandAttack)
+                }
+                cli_dungeon_rules::character::AvailableAction::Item(item_action) => {
+                    match action.requires_target {
+                        true => self
+                            .action_target
+                            .map(|target| BonusAction::ItemWithTarget(item_action, target)),
+                        false => Some(BonusAction::Item(item_action)),
+                    }
+                }
+            })
     }
 }
 
@@ -214,6 +240,12 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
             return;
         };
 
+        let character = encounter
+            .rotation
+            .iter()
+            .find(|character| character.id == character_info.id)
+            .unwrap();
+
         let Some(encounter) = EncounterState::from_encounter(encounter.clone(), character_info.id)
         else {
             return;
@@ -223,9 +255,9 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
         scope.push("state", encounter);
 
         let result: EncounterAction = engine.eval_ast_with_scope(&mut scope, &ast).unwrap();
-        let action = result.to_action();
+        let action = result.to_action(character);
 
-        let bonus_action = result.to_bonus_action();
+        let bonus_action = result.to_bonus_action(character);
 
         let outcome = take_turn(pool, character_info, action, bonus_action)
             .await
