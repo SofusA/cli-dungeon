@@ -20,12 +20,22 @@ pub enum ActionType {
     BonusAction(ItemAction),
 }
 
+impl ActionType {
+    pub fn item_action(self) -> ItemAction {
+        match self {
+            ActionType::Action(item_action) => item_action,
+            ActionType::BonusAction(item_action) => item_action,
+        }
+    }
+}
+
 pub struct Item {
     pub name: String,
     pub cost: Gold,
     pub action: ActionType,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemAction {
     Spell(SpellAction),
     Projectile(WeaponAttackStats),

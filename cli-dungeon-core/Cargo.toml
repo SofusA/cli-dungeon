@@ -14,3 +14,6 @@ futures = { workspace = true }
 rand = { workspace = true }
 sanitizer = { workspace = true }
 async-recursion = "1"
+
+[dev-dependencies]
+sqlx = { workspace = true }

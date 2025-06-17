@@ -213,6 +213,41 @@ react("attack", target.id, "attack", target.id)
     "#
 }
 
+fn run_script_get_action(
+    active_character_id: i64,
+    encounter: Encounter,
+    ast: &rhai::AST,
+    engine: &rhai::Engine,
+) -> Option<(Option<Action>, Option<BonusAction>)> {
+    let character = encounter
+        .rotation
+        .iter()
+        .find(|character| character.id == active_character_id)
+        .unwrap();
+
+    let encounter = EncounterState::from_encounter(encounter.clone(), active_character_id)?;
+
+    let mut scope = Scope::new();
+    scope.push("state", encounter);
+
+    let result: EncounterAction = engine.eval_ast_with_scope(&mut scope, ast).unwrap();
+    let action = result.to_action(character);
+
+    let bonus_action = result.to_bonus_action(character);
+
+    Some((action, bonus_action))
+}
+
+fn build_engine() -> Engine {
+    let mut engine = Engine::new();
+    engine
+        .build_type::<EncounterState>()
+        .build_type::<EncounterAction>()
+        .build_type::<EncounterCharacter>();
+
+    engine
+}
+
 pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo) {
     let script_path = {
         let mut config = dirs::config_dir().unwrap();
@@ -221,18 +256,13 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
         config
     };
 
-    let mut engine = Engine::new();
-    engine
-        .build_type::<EncounterState>()
-        .build_type::<EncounterAction>()
-        .build_type::<EncounterCharacter>();
+    let engine = build_engine();
 
     if !script_path.exists() {
         let mut file = std::fs::File::create(&script_path).unwrap();
         write!(file, "{}", default_encounter_script()).unwrap();
     }
 
-    // TODO: move to private function and test it. Should display the turn outcome, but also return it. Test the returned outcome
     let ast = engine.compile_file(script_path).unwrap();
 
     loop {
@@ -240,26 +270,13 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
             return;
         };
 
-        let character = encounter
-            .rotation
-            .iter()
-            .find(|character| character.id == character_info.id)
-            .unwrap();
+        let result = run_script_get_action(character_info.id, encounter, &ast, &engine);
 
-        let Some(encounter) = EncounterState::from_encounter(encounter.clone(), character_info.id)
-        else {
+        let Some(result) = result else {
             return;
         };
 
-        let mut scope = Scope::new();
-        scope.push("state", encounter);
-
-        let result: EncounterAction = engine.eval_ast_with_scope(&mut scope, &ast).unwrap();
-        let action = result.to_action(character);
-
-        let bonus_action = result.to_bonus_action(character);
-
-        let outcome = take_turn(pool, character_info, action, bonus_action)
+        let outcome = take_turn(pool, character_info, result.0, result.1)
             .await
             .unwrap();
 
@@ -300,4 +317,108 @@ pub fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
             }
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use cli_dungeon_rules::{
+        Encounter, Status,
+        abilities::AbilityScores,
+        character::Character,
+        items::ItemType,
+        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+    };
+
+    use crate::encounter::{build_engine, default_encounter_script, run_script_get_action};
+
+    fn setup() -> (i64, Encounter) {
+        let scroll_of_weaken = ItemType::ScrollOfWeaken;
+        let healing_potion = ItemType::MinorHealingPotion;
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            player: true,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![scroll_of_weaken, healing_potion],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        let monster = Character {
+            id: 2,
+            name: "monster".to_string(),
+            player: false,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![scroll_of_weaken, healing_potion],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        let character_id = character.id;
+
+        let encounter = Encounter {
+            id: 1,
+            rotation: vec![character, monster],
+            dead_characters: vec![],
+        };
+
+        (character_id, encounter)
+    }
+
+    #[test]
+    fn default_script_can_run() {
+        let engine = build_engine();
+        let (character_id, encounter) = setup();
+
+        let script = default_encounter_script();
+
+        let ast = engine.compile(script).unwrap();
+
+        let result = run_script_get_action(character_id, encounter, &ast, &engine).unwrap();
+
+        assert!(result.0.is_some());
+        assert!(result.1.is_some());
+    }
+
+    // TODO: Test items
+    // Scroll of weaken
+    // Health potion
+    // TODO: Test action attack
+    // TODO: Test bonus action attack
 }

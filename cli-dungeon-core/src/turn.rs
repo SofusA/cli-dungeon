@@ -504,3 +504,92 @@ pub struct Attack {
     pub attacker_name: String,
     pub attacked_name: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use cli_dungeon_rules::{
+        Encounter, Status,
+        abilities::AbilityScores,
+        character::Character,
+        items::ItemType,
+        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+    };
+
+    use crate::turn::character_take_turn;
+
+    fn setup() -> (Encounter, Character) {
+        let scroll_of_weaken = ItemType::ScrollOfWeaken;
+        let healing_potion = ItemType::MinorHealingPotion;
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            player: true,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![scroll_of_weaken, healing_potion],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        let monster = Character {
+            id: 2,
+            name: "monster".to_string(),
+            player: false,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![scroll_of_weaken, healing_potion],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        let encounter = Encounter {
+            id: 1,
+            rotation: vec![character.clone(), monster],
+            dead_characters: vec![],
+        };
+
+        (encounter, character)
+    }
+
+    // TODO: Test
+    #[sqlx::test]
+    async fn take_turn(pool: sqlx::Pool<sqlx::Sqlite>) {
+        let (encounter, character) = setup();
+
+        let _outcome = character_take_turn(&pool, &character, &encounter, None, None);
+    }
+}

@@ -11,6 +11,7 @@ pub enum SpellType {
     Weaken,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SpellAction {
     Condition(ActiveCondition),
     Projectile(WeaponAttackStats),

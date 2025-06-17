@@ -1,5 +1,6 @@
 use crate::types::{Constitution, Dexterity, Strength};
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AbilityScaling {
     Strength,
     Dexterity,

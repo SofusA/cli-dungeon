@@ -4,6 +4,7 @@ use crate::{
     types::{AbilityScoreBonus, ArmorPoints, Gold},
 };
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct WeaponAttackStats {
     pub primary_ability: AbilityScaling,
     pub hit_bonus: AbilityScoreBonus,

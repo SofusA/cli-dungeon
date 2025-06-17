@@ -76,11 +76,13 @@ pub enum CharacterWeapon {
     Thrown(WeaponAttackStats),
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AvailableAction {
     Attack,
     Item(ItemAction),
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AvailableActionDefinition {
     pub name: String,
     pub action: AvailableAction,
@@ -125,7 +127,6 @@ impl Character {
         }
     }
 
-    // TODO: Test
     pub fn available_actions(&self) -> Vec<AvailableActionDefinition> {
         let mut actions: Vec<_> = self
             .item_inventory
@@ -156,7 +157,6 @@ impl Character {
         actions
     }
 
-    // TODO: Test
     pub fn available_bonus_actions(&self) -> Vec<AvailableActionDefinition> {
         let mut actions: Vec<_> = self
             .item_inventory
@@ -354,5 +354,88 @@ impl Character {
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        Status,
+        abilities::AbilityScores,
+        character::{AvailableAction, AvailableActionDefinition, Character},
+        items::ItemType,
+        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+    };
+
+    #[test]
+    fn correct_available_actions() {
+        let scroll_of_weaken = ItemType::ScrollOfWeaken;
+        let healing_potion = ItemType::MinorHealingPotion;
+
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            player: true,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![scroll_of_weaken, healing_potion],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        let mut actual_actions = character.available_actions();
+        actual_actions.sort_by(|a, b| b.name.cmp(&a.name));
+
+        assert_eq!(
+            actual_actions,
+            vec![
+                AvailableActionDefinition {
+                    name: "attack".to_string(),
+                    action: AvailableAction::Attack,
+                    requires_target: true
+                },
+                AvailableActionDefinition {
+                    name: scroll_of_weaken.to_item().name,
+                    action: AvailableAction::Item(scroll_of_weaken.to_item().action.item_action()),
+                    requires_target: true
+                },
+            ]
+        );
+
+        let mut actual_bonus_actions = character.available_bonus_actions();
+        actual_bonus_actions.sort_by(|a, b| b.name.cmp(&a.name));
+
+        assert_eq!(
+            actual_bonus_actions,
+            vec![
+                AvailableActionDefinition {
+                    name: "attack".to_string(),
+                    action: AvailableAction::Attack,
+                    requires_target: true
+                },
+                AvailableActionDefinition {
+                    name: healing_potion.to_item().name,
+                    action: AvailableAction::Item(healing_potion.to_item().action.item_action()),
+                    requires_target: false
+                },
+            ]
+        )
     }
 }

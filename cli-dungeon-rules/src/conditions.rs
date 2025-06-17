@@ -1,12 +1,16 @@
 use crate::types::{ArmorPoints, Strength, Turn};
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub struct ActiveCondition {
     pub duration: Option<Turn>,
     pub condition_type: ConditionType,
 }
 
-#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
+#[derive(
+    Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum ConditionType {
     Weaken,
 }
