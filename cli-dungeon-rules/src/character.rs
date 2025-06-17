@@ -132,21 +132,18 @@ impl Character {
             .iter()
             .map(|item| item.to_item())
             .flat_map(|item| match item.action {
-                ActionType::Action(item_action) => Some((item.name, item_action, true)),
+                ActionType::Action(item_action) => Some((item.name, item_action)),
                 ActionType::BonusAction(_) => None,
             })
             .map(|action| match action.1 {
-                ItemAction::Spell(_) => (action.0, action.1, action.2, true),
-                ItemAction::Projectile(_) => (action.0, action.1, action.2, true),
-                ItemAction::Healing(_) => (action.0, action.1, action.2, false),
+                ItemAction::Spell(_) => (action.0, action.1, true),
+                ItemAction::Projectile(_) => (action.0, action.1, true),
+                ItemAction::Healing(_) => (action.0, action.1, false),
             })
-            .map(|action| match action.2 {
-                true => AvailableActionDefinition {
-                    name: action.0,
-                    action: AvailableAction::Item(action.1),
-                    requires_target: action.3,
-                },
-                false => todo!(),
+            .map(|action| AvailableActionDefinition {
+                name: action.0,
+                action: AvailableAction::Item(action.1),
+                requires_target: action.2,
             })
             .collect();
 
@@ -170,17 +167,14 @@ impl Character {
                 ActionType::Action(_) => None,
             })
             .map(|action| match action.1 {
-                ItemAction::Spell(_) => (action.0, action.1, action.2, true),
-                ItemAction::Projectile(_) => (action.0, action.1, action.2, true),
-                ItemAction::Healing(_) => (action.0, action.1, action.2, false),
+                ItemAction::Spell(_) => (action.0, action.1, true),
+                ItemAction::Projectile(_) => (action.0, action.1, true),
+                ItemAction::Healing(_) => (action.0, action.1, false),
             })
-            .map(|action| match action.2 {
-                true => AvailableActionDefinition {
-                    name: action.0,
-                    action: AvailableAction::Item(action.1),
-                    requires_target: action.3,
-                },
-                false => todo!(),
+            .map(|action| AvailableActionDefinition {
+                name: action.0,
+                action: AvailableAction::Item(action.1),
+                requires_target: action.2,
             })
             .collect();
 

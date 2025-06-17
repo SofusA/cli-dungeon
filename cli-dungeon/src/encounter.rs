@@ -288,6 +288,16 @@ pub fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
             TurnOutcome::StartTurn(character_name) => {
                 cprintln!("<green>It is {}'s turn!</>", character_name)
             }
+            TurnOutcome::ConditionSet((character_name, condition)) => {
+                cprintln!("<yellow>{} got {} condition</>", character_name, condition)
+            }
+            TurnOutcome::Healed((character_name, health)) => {
+                cprintln!(
+                    "<red>{} healed by {} health points</>",
+                    character_name,
+                    health
+                )
+            }
         }
     }
 }
