@@ -206,6 +206,7 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
         write!(file, "{}", default_encounter_script()).unwrap();
     }
 
+    // TODO: move to private function and test it. Should display the turn outcome, but also return it. Test the returned outcome
     let ast = engine.compile_file(script_path).unwrap();
 
     loop {

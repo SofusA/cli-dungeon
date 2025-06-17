@@ -1,8 +1,9 @@
 use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
-    Character, Status,
+    Status,
     abilities::{AbilityScores, AbilityType},
     armor::ArmorType,
+    character::Character,
     classes::{ClassType, LevelUpChoice},
     jewelry::JewelryType,
     types::{HealthPoints, QuestPoint},

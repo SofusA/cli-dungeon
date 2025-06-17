@@ -77,6 +77,7 @@ enum CharacterCommands {
         #[clap(subcommand)]
         command: LevelUpCommands,
     },
+    Actions,
 }
 
 #[derive(Subcommand)]
@@ -272,6 +273,51 @@ async fn main() -> Result<()> {
                         .await?;
                 }
             }
+            CharacterCommands::Actions => {
+                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+
+                let character = cli_dungeon_core::character::get_character(&pool, &character_info)
+                    .await
+                    .unwrap();
+
+                let actions = character.available_actions();
+                let bonus_actions = character.available_bonus_actions();
+
+                let formatted_actions: Vec<_> = actions
+                    .into_iter()
+                    .map(|action| {
+                        format!(
+                            "{}{}",
+                            action.name,
+                            if action.requires_target {
+                                " <TARGET>"
+                            } else {
+                                ""
+                            }
+                        )
+                    })
+                    .collect();
+
+                let formatted_bonus_actions: Vec<_> = bonus_actions
+                    .into_iter()
+                    .map(|action| {
+                        format!(
+                            "{}{}",
+                            action.name,
+                            if action.requires_target {
+                                " <TARGET>"
+                            } else {
+                                ""
+                            }
+                        )
+                    })
+                    .collect();
+
+                cprintln!("<blue>Available actions</>");
+                cprintln!("{}", formatted_actions.join(", "));
+                cprintln!("<yellow>Available bonus actions</>");
+                cprintln!("{}", formatted_bonus_actions.join(", "));
+            }
         },
         Commands::Shop { command } => match command {
             ShopCommands::List => {
@@ -361,7 +407,7 @@ mod tests {
     use cli_dungeon_core::character::get_character;
     use cli_dungeon_rules::{
         armor::ArmorType,
-        experience_gain,
+        character::experience_gain,
         items::ItemType,
         jewelry::JewelryType,
         monsters::MonsterType,

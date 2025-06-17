@@ -1,5 +1,6 @@
 use crate::{
-    AbilityScaling, Dice,
+    Dice,
+    abilities::AbilityScaling,
     types::{AbilityScoreBonus, ArmorPoints, Gold},
 };
 
