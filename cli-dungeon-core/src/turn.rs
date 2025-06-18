@@ -20,27 +20,29 @@ pub(crate) async fn advance_turn(pool: &Pool, character: &Character) {
         .active_conditions
         .clone()
         .into_iter()
-        .filter(|condition| {
-            condition
-                .duration
-                .is_some_and(|condition| condition < Turn::new(0))
-        })
-        .inspect(|condition| {
-            if let Some(mut duration) = condition.duration {
-                duration -= Turn::new(1);
+        .filter_map(|mut condition| {
+            if let Some(duration) = &mut condition.duration {
+                if *duration == Turn::new(0) {
+                    return None;
+                }
+
+                *duration -= Turn::new(1);
             }
+            Some(condition)
         })
         .collect();
 
     cli_dungeon_database::set_character_conditions(pool, &character.id, new_conditions).await;
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     Attack(i64),
     Item(ItemAction),
     ItemWithTarget(ItemAction, i64),
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum BonusAction {
     OffhandAttack(i64),
     Item(ItemAction),
@@ -508,88 +510,177 @@ pub struct Attack {
 #[cfg(test)]
 mod tests {
     use cli_dungeon_rules::{
-        Encounter, Status,
-        abilities::AbilityScores,
-        character::Character,
-        items::ItemType,
-        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+        conditions::{ActiveCondition, ConditionType},
+        monsters::MonsterType,
+        spells::SpellType,
+        types::{HealthPoints, Turn},
     };
 
-    use crate::turn::character_take_turn;
+    use crate::{advance_turn, turn::character_take_turn};
 
-    fn setup() -> (Encounter, Character) {
-        let scroll_of_weaken = ItemType::ScrollOfWeaken;
-        let healing_potion = ItemType::MinorHealingPotion;
-        let character = Character {
-            id: 1,
-            name: "Testington".to_string(),
-            player: true,
-            current_health: HealthPoints::new(10),
-            base_ability_scores: AbilityScores {
-                strength: Strength::new(8),
-                dexterity: Dexterity::new(8),
-                constitution: Constitution::new(8),
-            },
-            gold: Gold::new(0),
-            experience: Experience::new(0),
-            equipped_weapon: None,
-            equipped_offhand: None,
-            equipped_armor: None,
-            equipped_jewelry: vec![],
-            weapon_inventory: vec![],
-            armor_inventory: vec![],
-            jewelry_inventory: vec![],
-            item_inventory: vec![scroll_of_weaken, healing_potion],
-            level_up_choices: vec![],
-            status: Status::Questing,
-            party: 1,
-            quest_points: QuestPoint::new(0),
-            short_rests_available: 2,
-            active_conditions: vec![],
-        };
+    #[sqlx::test]
+    async fn can_skip_turn(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+        let monster_1 = MonsterType::TestMonsterWithDagger;
+        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
 
-        let monster = Character {
-            id: 2,
-            name: "monster".to_string(),
-            player: false,
-            current_health: HealthPoints::new(10),
-            base_ability_scores: AbilityScores {
-                strength: Strength::new(8),
-                dexterity: Dexterity::new(8),
-                constitution: Constitution::new(8),
-            },
-            gold: Gold::new(0),
-            experience: Experience::new(0),
-            equipped_weapon: None,
-            equipped_offhand: None,
-            equipped_armor: None,
-            equipped_jewelry: vec![],
-            weapon_inventory: vec![],
-            armor_inventory: vec![],
-            jewelry_inventory: vec![],
-            item_inventory: vec![scroll_of_weaken, healing_potion],
-            level_up_choices: vec![],
-            status: Status::Questing,
-            party: 1,
-            quest_points: QuestPoint::new(0),
-            short_rests_available: 2,
-            active_conditions: vec![],
-        };
+        let party_1 = cli_dungeon_database::create_party(&pool).await;
+        let party_2 = cli_dungeon_database::create_party(&pool).await;
 
-        let encounter = Encounter {
-            id: 1,
-            rotation: vec![character.clone(), monster],
-            dead_characters: vec![],
-        };
+        let monster_1 = cli_dungeon_database::create_monster(&pool, monster_1, party_1)
+            .await
+            .id;
+        let monster_2 = cli_dungeon_database::create_monster(&pool, monster_2, party_2)
+            .await
+            .id;
 
-        (encounter, character)
+        let rotation = vec![monster_1, monster_2];
+
+        let encounter = cli_dungeon_database::create_encounter(&pool, rotation).await;
+        let encounter = cli_dungeon_database::get_encounter(&pool, &encounter)
+            .await
+            .unwrap();
+
+        let monster_1 = cli_dungeon_database::get_character(&pool, &monster_1)
+            .await
+            .unwrap();
+        let monster_2 = cli_dungeon_database::get_character(&pool, &monster_2)
+            .await
+            .unwrap();
+
+        let character_turn = encounter.rotation.first().unwrap();
+        assert_eq!(character_turn.id, monster_1.id);
+
+        character_take_turn(&pool, &monster_1, &encounter, None, None).await;
+
+        let encounter = cli_dungeon_database::get_encounter(&pool, &encounter.id)
+            .await
+            .unwrap();
+        let character_turn = encounter.rotation.first().unwrap();
+        assert_eq!(character_turn.id, monster_2.id);
     }
 
-    // TODO: Test
     #[sqlx::test]
-    async fn take_turn(pool: sqlx::Pool<sqlx::Sqlite>) {
-        let (encounter, character) = setup();
+    async fn can_heal(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+        let monster_1 = MonsterType::TestMonsterWithDagger;
+        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
 
-        let _outcome = character_take_turn(&pool, &character, &encounter, None, None);
+        let party_1 = cli_dungeon_database::create_party(&pool).await;
+        let party_2 = cli_dungeon_database::create_party(&pool).await;
+
+        let monster_1 = cli_dungeon_database::create_monster(&pool, monster_1, party_1)
+            .await
+            .id;
+        let monster_2 = cli_dungeon_database::create_monster(&pool, monster_2, party_2)
+            .await
+            .id;
+
+        cli_dungeon_database::set_character_health(&pool, &monster_1, HealthPoints::new(1)).await;
+
+        let rotation = vec![monster_1, monster_2];
+
+        let encounter = cli_dungeon_database::create_encounter(&pool, rotation).await;
+        let encounter = cli_dungeon_database::get_encounter(&pool, &encounter)
+            .await
+            .unwrap();
+
+        let monster_1 = cli_dungeon_database::get_character(&pool, &monster_1)
+            .await
+            .unwrap();
+
+        character_take_turn(
+            &pool,
+            &monster_1,
+            &encounter,
+            None,
+            Some(crate::turn::BonusAction::Item(
+                cli_dungeon_rules::items::ItemAction::Healing(HealthPoints::new(1)),
+            )),
+        )
+        .await;
+
+        let monster_1 = cli_dungeon_database::get_character(&pool, &monster_1.id)
+            .await
+            .unwrap();
+
+        assert_eq!(monster_1.current_health, HealthPoints::new(2));
+    }
+
+    #[sqlx::test]
+    async fn can_set_conditions(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+        let monster_1 = MonsterType::TestMonsterWithDagger;
+        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
+
+        let party_1 = cli_dungeon_database::create_party(&pool).await;
+        let party_2 = cli_dungeon_database::create_party(&pool).await;
+
+        let monster_1 = cli_dungeon_database::create_monster(&pool, monster_1, party_1)
+            .await
+            .id;
+        let monster_2 = cli_dungeon_database::create_monster(&pool, monster_2, party_2)
+            .await
+            .id;
+
+        cli_dungeon_database::set_character_health(&pool, &monster_1, HealthPoints::new(1)).await;
+
+        let rotation = vec![monster_1, monster_2];
+
+        let encounter = cli_dungeon_database::create_encounter(&pool, rotation).await;
+        let encounter = cli_dungeon_database::get_encounter(&pool, &encounter)
+            .await
+            .unwrap();
+
+        let monster_1 = cli_dungeon_database::get_character(&pool, &monster_1)
+            .await
+            .unwrap();
+
+        character_take_turn(
+            &pool,
+            &monster_1,
+            &encounter,
+            None,
+            Some(crate::turn::BonusAction::ItemWithTarget(
+                cli_dungeon_rules::items::ItemAction::Spell(SpellType::Weaken.spell_action()),
+                monster_2,
+            )),
+        )
+        .await;
+
+        let monster_2 = cli_dungeon_database::get_character(&pool, &monster_2)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            monster_2.active_conditions,
+            vec![SpellType::Weaken.active_condition().unwrap()]
+        );
+
+        advance_turn(&pool, &monster_2).await;
+
+        let monster_2 = cli_dungeon_database::get_character(&pool, &monster_2.id)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            monster_2.active_conditions,
+            vec![ActiveCondition {
+                duration: Some(Turn::new(1)),
+                condition_type: ConditionType::Weaken
+            }]
+        );
+
+        advance_turn(&pool, &monster_2).await;
+        let monster_2 = cli_dungeon_database::get_character(&pool, &monster_2.id)
+            .await
+            .unwrap();
+
+        advance_turn(&pool, &monster_2).await;
+        let monster_2 = cli_dungeon_database::get_character(&pool, &monster_2.id)
+            .await
+            .unwrap();
+
+        assert_eq!(monster_2.active_conditions, vec![]);
     }
 }

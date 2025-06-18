@@ -387,7 +387,7 @@ pub async fn validate_player(
     Ok(Character::from(character).is_alive())
 }
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum DatabaseError {
     #[error("Mismatch in character secret. Is this your character?")]
     WrongSecret,

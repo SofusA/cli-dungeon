@@ -1,4 +1,4 @@
-use crate::types::{ArmorPoints, Strength, Turn};
+use crate::types::{ArmorPoints, Constitution, Dexterity, Strength, Turn};
 
 #[derive(
     Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
@@ -19,6 +19,8 @@ pub struct Condition {
     pub name: String,
     pub armor_bonus: Option<ArmorPoints>,
     pub strength_bonus: Option<Strength>,
+    pub dexterity_bonus: Option<Dexterity>,
+    pub constitution_bonus: Option<Constitution>,
 }
 
 impl ConditionType {
@@ -37,6 +39,8 @@ impl ConditionType {
                 name: self.to_name(),
                 armor_bonus: None,
                 strength_bonus: Some(Strength::new(-1)),
+                dexterity_bonus: None,
+                constitution_bonus: None,
             },
         }
     }

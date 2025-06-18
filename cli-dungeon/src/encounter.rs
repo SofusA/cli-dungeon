@@ -91,6 +91,18 @@ impl EncounterAction {
             bonus_action_target: None,
         }
     }
+    fn new_action_with_target_bonus_no_target(
+        action: ImmutableString,
+        action_target: i64,
+        bonus_action: ImmutableString,
+    ) -> EncounterAction {
+        EncounterAction {
+            action,
+            action_target: Some(action_target),
+            bonus_action,
+            bonus_action_target: None,
+        }
+    }
 
     fn build_extra(builder: &mut TypeBuilder<Self>) {
         builder.with_fn("react", EncounterAction::new);
@@ -101,13 +113,17 @@ impl EncounterAction {
             EncounterAction::new_action_no_target_no_bonus_action,
         );
         builder.with_fn("react", EncounterAction::new_bonus_action_no_target);
+        builder.with_fn(
+            "react",
+            EncounterAction::new_action_with_target_bonus_no_target,
+        );
     }
 
     fn to_action(&self, character: &Character) -> Option<Action> {
         character
             .available_actions()
             .into_iter()
-            .find(|action| action.name == self.action)
+            .find(|action| action.name.to_lowercase() == self.action.to_lowercase())
             .and_then(|action| match action.action {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
                     self.action_target.map(Action::Attack)
@@ -127,10 +143,10 @@ impl EncounterAction {
         character
             .available_bonus_actions()
             .into_iter()
-            .find(|action| action.name == self.action)
+            .find(|action| action.name.to_lowercase() == self.bonus_action.to_lowercase())
             .and_then(|action| match action.action {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
-                    self.action_target.map(BonusAction::OffhandAttack)
+                    self.bonus_action_target.map(BonusAction::OffhandAttack)
                 }
                 cli_dungeon_rules::character::AvailableAction::Item(item_action) => {
                     match action.requires_target {
@@ -259,6 +275,8 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
     let engine = build_engine();
 
     if !script_path.exists() {
+        std::fs::create_dir_all(script_path.parent().unwrap()).unwrap();
+
         let mut file = std::fs::File::create(&script_path).unwrap();
         write!(file, "{}", default_encounter_script()).unwrap();
     }
@@ -321,6 +339,7 @@ pub fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
 
 #[cfg(test)]
 mod tests {
+    use cli_dungeon_core::turn::{Action, BonusAction};
     use cli_dungeon_rules::{
         Encounter, Status,
         abilities::AbilityScores,
@@ -331,7 +350,7 @@ mod tests {
 
     use crate::encounter::{build_engine, default_encounter_script, run_script_get_action};
 
-    fn setup() -> (i64, Encounter) {
+    fn setup() -> (Encounter, Character) {
         let scroll_of_weaken = ItemType::ScrollOfWeaken;
         let healing_potion = ItemType::MinorHealingPotion;
         let character = Character {
@@ -390,35 +409,67 @@ mod tests {
             active_conditions: vec![],
         };
 
-        let character_id = character.id;
-
         let encounter = Encounter {
             id: 1,
-            rotation: vec![character, monster],
+            rotation: vec![character.clone(), monster],
             dead_characters: vec![],
         };
 
-        (character_id, encounter)
+        (encounter, character)
     }
 
     #[test]
     fn default_script_can_run() {
         let engine = build_engine();
-        let (character_id, encounter) = setup();
+        let (encounter, character) = setup();
 
         let script = default_encounter_script();
 
         let ast = engine.compile(script).unwrap();
 
-        let result = run_script_get_action(character_id, encounter, &ast, &engine).unwrap();
+        let result = run_script_get_action(character.id, encounter, &ast, &engine).unwrap();
 
         assert!(result.0.is_some());
         assert!(result.1.is_some());
     }
 
-    // TODO: Test items
-    // Scroll of weaken
-    // Health potion
-    // TODO: Test action attack
-    // TODO: Test bonus action attack
+    #[test]
+    fn scripts_can_use_items() {
+        let engine = build_engine();
+        let (encounter, character) = setup();
+
+        let script = r#"
+            react("scrollofweaken", 2, "MinorHealingPotion");
+        "#;
+
+        let ast = engine.compile(script).unwrap();
+
+        let result = run_script_get_action(character.id, encounter, &ast, &engine).unwrap();
+
+        assert_eq!(
+            result.0.unwrap(),
+            Action::ItemWithTarget(ItemType::ScrollOfWeaken.item_action(), 2)
+        );
+        assert_eq!(
+            result.1.unwrap(),
+            BonusAction::Item(ItemType::MinorHealingPotion.item_action())
+        );
+    }
+
+    #[test]
+    fn scripts_can_use_attacks() {
+        let engine = build_engine();
+        let (encounter, character) = setup();
+
+        let script = r#"
+            react("attack", 2, "attack", 2);
+        "#;
+
+        let ast = engine.compile(script).unwrap();
+
+        let result = run_script_get_action(character.id, encounter, &ast, &engine).unwrap();
+
+        assert_eq!(result.0.unwrap(), Action::Attack(2));
+        assert_eq!(result.1.unwrap(), BonusAction::OffhandAttack(2));
+    }
 }

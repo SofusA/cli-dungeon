@@ -53,7 +53,10 @@ pub async fn short_rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(
         return Err(GameError::InsufficientShortRests);
     }
 
-    let new_health = HealthPoints::new(*character.max_health() / 2) + character.current_health;
+    let mut new_health = HealthPoints::new(*character.max_health() / 2) + character.current_health;
+    if new_health > character.max_health() {
+        new_health = character.max_health()
+    }
     let new_short_rests = character.short_rests_available - 1;
 
     cli_dungeon_database::set_character_health(pool, &character.id, new_health).await;
@@ -277,4 +280,122 @@ pub(crate) async fn validate_player(
     };
 
     Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use cli_dungeon_rules::{
+        monsters::MonsterType,
+        types::{HealthPoints, QuestPoint},
+    };
+
+    use crate::{
+        character::{self, create_character, short_rest},
+        errors::GameError,
+        play, shop,
+    };
+
+    #[sqlx::test]
+    async fn can_short_rest(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+
+        let character_info = create_character(&pool, "testington".to_string(), 0, 6, 4)
+            .await
+            .unwrap();
+        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        let set_health = HealthPoints::new(5);
+        cli_dungeon_database::set_character_health(&pool, &character.id, set_health).await;
+
+        short_rest(&pool, &character_info).await.unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            character.current_health,
+            set_health + HealthPoints::new(*character.max_health() / 2)
+        );
+
+        short_rest(&pool, &character_info).await.unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        assert_eq!(character.current_health, character.max_health());
+
+        let error_short_rest = short_rest(&pool, &character_info).await;
+        assert_eq!(error_short_rest, Err(GameError::InsufficientShortRests));
+    }
+
+    #[sqlx::test]
+    async fn questing_works(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+
+        let character_info = create_character(&pool, "testington".to_string(), 0, 6, 4)
+            .await
+            .unwrap();
+        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+
+        let main_hand = "shortsword".to_string();
+        let offhand = "dagger".to_string();
+        let armor = "leather".to_string();
+        shop::buy(&pool, &character_info, main_hand.clone())
+            .await
+            .unwrap();
+        shop::buy(&pool, &character_info, offhand.clone())
+            .await
+            .unwrap();
+        shop::buy(&pool, &character_info, armor.clone())
+            .await
+            .unwrap();
+
+        // Equip
+        character::equip_main_hand(&pool, &character_info, main_hand)
+            .await
+            .unwrap();
+        character::equip_offhand(&pool, &character_info, offhand)
+            .await
+            .unwrap();
+        character::equip_armor(&pool, &character_info, armor)
+            .await
+            .unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+        assert_eq!(character.quest_points, QuestPoint::new(0));
+
+        // Start quest
+        character::quest(&pool, &character_info).await.unwrap();
+
+        let enemy_party_id = cli_dungeon_database::create_party(&pool).await;
+
+        let enemy_1 = MonsterType::TestMonsterWithDagger;
+
+        let enemy_1_id = cli_dungeon_database::create_monster(&pool, enemy_1, enemy_party_id)
+            .await
+            .id;
+
+        let rotation = vec![character_info.id, enemy_1_id];
+
+        let encounter_id = cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
+
+        for character_id in rotation.iter() {
+            cli_dungeon_database::set_encounter_id(&pool, character_id, Some(encounter_id)).await;
+        }
+
+        play(&pool, false, &character_info).await.unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        assert_eq!(character.quest_points, QuestPoint::new(1));
+    }
 }

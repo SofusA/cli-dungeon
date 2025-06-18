@@ -20,15 +20,6 @@ pub enum ActionType {
     BonusAction(ItemAction),
 }
 
-impl ActionType {
-    pub fn item_action(self) -> ItemAction {
-        match self {
-            ActionType::Action(item_action) => item_action,
-            ActionType::BonusAction(item_action) => item_action,
-        }
-    }
-}
-
 pub struct Item {
     pub name: String,
     pub cost: Gold,
@@ -85,6 +76,12 @@ impl ItemType {
                 cost: Gold::new(500),
                 action: ActionType::BonusAction(ItemAction::Healing(HealthPoints::new(10))),
             },
+        }
+    }
+
+    pub fn item_action(&self) -> ItemAction {
+        match self.to_item().action {
+            ActionType::Action(action) | ActionType::BonusAction(action) => action,
         }
     }
 }

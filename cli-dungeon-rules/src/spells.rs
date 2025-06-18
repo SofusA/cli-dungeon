@@ -55,4 +55,11 @@ impl SpellType {
             SpellActionType::Action(action) | SpellActionType::BonusAction(action) => action,
         }
     }
+
+    pub fn active_condition(&self) -> Option<ActiveCondition> {
+        match self.spell_action() {
+            SpellAction::Condition(active_condition) => Some(active_condition),
+            SpellAction::Projectile(_) => None,
+        }
+    }
 }

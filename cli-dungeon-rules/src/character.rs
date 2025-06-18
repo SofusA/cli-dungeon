@@ -106,11 +106,27 @@ impl Character {
                 .count() as i16,
         );
 
+        let strength_condition_bonus = Strength::new(
+            self.active_conditions
+                .iter()
+                .flat_map(|condition| condition.condition_type.to_condition().strength_bonus)
+                .map(|strength| **strength)
+                .sum(),
+        );
+
         let dexterity_level_bonus = Dexterity::new(
             self.level_up_choices
                 .iter()
                 .filter(|choice| choice.ability_increment == AbilityType::Dexterity)
                 .count() as i16,
+        );
+
+        let dexterity_condition_bonus = Dexterity::new(
+            self.active_conditions
+                .iter()
+                .flat_map(|condition| condition.condition_type.to_condition().dexterity_bonus)
+                .map(|dexterity| **dexterity)
+                .sum(),
         );
 
         let constitution_level_bonus = Constitution::new(
@@ -120,10 +136,24 @@ impl Character {
                 .count() as i16,
         );
 
+        let constitution_condition_bonus = Constitution::new(
+            self.active_conditions
+                .iter()
+                .flat_map(|condition| condition.condition_type.to_condition().constitution_bonus)
+                .map(|constitution| **constitution)
+                .sum(),
+        );
+
         AbilityScores {
-            strength: base_ability_scores.strength + strength_level_bonus,
-            dexterity: base_ability_scores.dexterity + dexterity_level_bonus,
-            constitution: base_ability_scores.constitution + constitution_level_bonus,
+            strength: base_ability_scores.strength
+                + strength_level_bonus
+                + strength_condition_bonus,
+            dexterity: base_ability_scores.dexterity
+                + dexterity_level_bonus
+                + dexterity_condition_bonus,
+            constitution: base_ability_scores.constitution
+                + constitution_level_bonus
+                + constitution_condition_bonus,
         }
     }
 
@@ -364,8 +394,53 @@ mod tests {
         abilities::AbilityScores,
         character::{AvailableAction, AvailableActionDefinition, Character},
         items::ItemType,
+        spells::SpellType,
         types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
     };
+
+    #[test]
+    fn correct_conditions() {
+        let strength = Strength::new(8);
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            player: true,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength,
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![SpellType::Weaken.active_condition().unwrap()],
+        };
+
+        assert_eq!(
+            character.ability_scores().strength,
+            strength
+                + SpellType::Weaken
+                    .active_condition()
+                    .unwrap()
+                    .condition_type
+                    .to_condition()
+                    .strength_bonus
+                    .unwrap()
+        )
+    }
 
     #[test]
     fn correct_available_actions() {
@@ -413,7 +488,7 @@ mod tests {
                 },
                 AvailableActionDefinition {
                     name: scroll_of_weaken.to_item().name,
-                    action: AvailableAction::Item(scroll_of_weaken.to_item().action.item_action()),
+                    action: AvailableAction::Item(scroll_of_weaken.item_action()),
                     requires_target: true
                 },
             ]
@@ -432,7 +507,7 @@ mod tests {
                 },
                 AvailableActionDefinition {
                     name: healing_potion.to_item().name,
-                    action: AvailableAction::Item(healing_potion.to_item().action.item_action()),
+                    action: AvailableAction::Item(healing_potion.item_action()),
                     requires_target: false
                 },
             ]

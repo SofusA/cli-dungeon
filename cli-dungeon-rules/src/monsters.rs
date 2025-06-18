@@ -37,6 +37,7 @@ fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
 
 #[derive(Clone, Copy)]
 pub enum MonsterType {
+    TestMonster,
     TestMonsterWithDagger,
     TestMonsterWithLeatherArmor,
     TestMonsterWithRingOfProtectionAndStone,
@@ -48,6 +49,21 @@ pub enum MonsterType {
 impl MonsterType {
     pub fn to_monster(self) -> MonsterDefinition {
         match self {
+            MonsterType::TestMonster => MonsterDefinition::new(
+                "Test monster",
+                AbilityScores::new(4, 2, 14),
+                Gold::new(1),
+                None,
+                None,
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+            ),
             MonsterType::TestMonsterWithDagger => MonsterDefinition::new(
                 "Test monster",
                 AbilityScores::new(4, 2, 14),

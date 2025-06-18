@@ -404,14 +404,14 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use cli_dungeon_core::character::get_character;
+    use cli_dungeon_core::{character::get_character, errors::GameError};
     use cli_dungeon_rules::{
         armor::ArmorType,
         character::experience_gain,
         items::ItemType,
         jewelry::JewelryType,
         monsters::MonsterType,
-        types::{ArmorPoints, Constitution, Dexterity, Level, Strength},
+        types::{ArmorPoints, Constitution, Dexterity, Gold, Level, Strength},
         weapons::WeaponType,
     };
 
@@ -460,13 +460,13 @@ mod tests {
             .unwrap();
 
         // Equip
-        cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand)
+        cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand.clone())
             .await
             .unwrap();
-        cli_dungeon_core::character::equip_offhand(&pool, &character_info, offhand)
+        cli_dungeon_core::character::equip_offhand(&pool, &character_info, offhand.clone())
             .await
             .unwrap();
-        cli_dungeon_core::character::equip_armor(&pool, &character_info, armor)
+        cli_dungeon_core::character::equip_armor(&pool, &character_info, armor.clone())
             .await
             .unwrap();
 
@@ -549,7 +549,7 @@ mod tests {
 
             let enemy = cli_dungeon_database::create_monster(
                 &pool,
-                MonsterType::TestMonsterWithDagger,
+                MonsterType::TestMonster,
                 enemy_party_id,
             )
             .await
@@ -618,18 +618,60 @@ mod tests {
 
         assert_eq!(updated_character.armor_points(), ArmorPoints::new(13));
 
-        // TODO: Assert qusting points
-        // TODO: Assert conditions
-        // TODO: Assert short rests
-        // TODO: Assert sell
-        // - jewelry: check unequip
-        // - item
-        // - weapons: check unequip
-        // - armor: check unequip
+        // Sell
+
+        cli_dungeon_core::character::equip_jewelry(
+            &pool,
+            &character_info,
+            "ring of protection".to_string(),
+        )
+        .await
+        .unwrap();
+
+        let updated_character = get_character(&pool, &character_info).await.unwrap();
+        let before_sell_gold = updated_character.gold;
+
+        cli_dungeon_core::shop::sell(&pool, &character_info, main_hand.clone())
+            .await
+            .unwrap();
+        cli_dungeon_core::shop::sell(&pool, &character_info, offhand.clone())
+            .await
+            .unwrap();
+        cli_dungeon_core::shop::sell(&pool, &character_info, offhand.clone())
+            .await
+            .unwrap();
+        cli_dungeon_core::shop::sell(&pool, &character_info, armor.clone())
+            .await
+            .unwrap();
+        cli_dungeon_core::shop::sell(&pool, &character_info, armor.clone())
+            .await
+            .unwrap();
+        cli_dungeon_core::shop::sell(&pool, &character_info, "ring of protection".to_string())
+            .await
+            .unwrap();
+
+        let after_character = get_character(&pool, &character_info).await.unwrap();
+        let after_sell_gold = after_character.gold;
+        assert_eq!(
+            after_sell_gold,
+            before_sell_gold
+                + Gold::new(*WeaponType::Shortsword.to_weapon().cost / 2)
+                + Gold::new(*WeaponType::Dagger.to_weapon().cost / 2)
+                + Gold::new(*WeaponType::Dagger.to_weapon().cost / 2)
+                + Gold::new(*ArmorType::Leather.to_armor().cost / 2)
+                + Gold::new(*ArmorType::Leather.to_armor().cost / 2)
+                + Gold::new(*JewelryType::RingOfProtection.to_jewelry().cost / 2)
+        );
+
+        assert_eq!(after_character.equipped_weapon, None);
+        assert_eq!(after_character.equipped_offhand, None);
+        assert_eq!(after_character.equipped_armor, None);
+        assert_eq!(after_character.equipped_jewelry, vec![]);
+
+        let error_sell =
+            cli_dungeon_core::shop::sell(&pool, &character_info, offhand.clone()).await;
+        assert_eq!(error_sell, Err(GameError::WeaponNotInInventory));
+
         // TODO: Assert the looooot (completed quest)
-        // TODO: Assert use item
-        // - spell condition
-        // - spell projectile
-        // - thrown
     }
 }
