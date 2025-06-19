@@ -258,7 +258,7 @@ impl Character {
                 true => str.ability_score_bonus(),
                 false => dex.ability_score_bonus(),
             },
-            AbilityScaling::Intelligence => AbilityScoreBonus::new(0),
+            AbilityScaling::Wisdom => AbilityScoreBonus::new(0),
         };
 
         let attack_dice = spell_stats.attack_dices;
@@ -270,18 +270,18 @@ impl Character {
         }
     }
 
-    pub fn attack_stats(&self, weapon: CharacterWeapon) -> AttackStats {
+    pub fn attack_stats(&self, weapon_type: CharacterWeapon) -> AttackStats {
         let dex = &self.ability_scores().dexterity;
         let str = &self.ability_scores().strength;
 
-        let weapon = match weapon {
+        let weapon = match &weapon_type {
             CharacterWeapon::Mainhand => self
                 .equipped_weapon
                 .map(|weapon| weapon.to_weapon().attack_stats),
             CharacterWeapon::Offhand => self
                 .equipped_offhand
                 .map(|weapon| weapon.to_weapon().attack_stats),
-            CharacterWeapon::Thrown(weapon_attack_stats) => Some(weapon_attack_stats),
+            CharacterWeapon::Thrown(weapon_attack_stats) => Some(weapon_attack_stats).cloned(),
         };
 
         let Some(weapon) = weapon else {
@@ -296,14 +296,18 @@ impl Character {
             };
         };
 
-        let ability_bonus = match weapon.primary_ability {
-            AbilityScaling::Strength => str.ability_score_bonus(),
-            AbilityScaling::Dexterity => dex.ability_score_bonus(),
-            AbilityScaling::Versatile => match **dex < **str {
-                true => str.ability_score_bonus(),
-                false => dex.ability_score_bonus(),
+        let ability_bonus = match weapon_type {
+            CharacterWeapon::Mainhand => match weapon.primary_ability {
+                AbilityScaling::Strength => str.ability_score_bonus(),
+                AbilityScaling::Dexterity => dex.ability_score_bonus(),
+                AbilityScaling::Versatile => match **dex < **str {
+                    true => str.ability_score_bonus(),
+                    false => dex.ability_score_bonus(),
+                },
+                AbilityScaling::Wisdom => AbilityScoreBonus::new(0),
             },
-            AbilityScaling::Intelligence => AbilityScoreBonus::new(0),
+            CharacterWeapon::Offhand => AbilityScoreBonus::new(0),
+            CharacterWeapon::Thrown(_) => str.ability_score_bonus(),
         };
 
         AttackStats {
@@ -608,7 +612,7 @@ mod tests {
                 + ArmorPoints::new(*character.ability_scores().dexterity.ability_score_bonus())
                 + WeaponType::Shield.to_weapon().armor_bonus
         );
-        assert_eq!(character.armor_points(), ArmorPoints::new(14));
+        assert_eq!(character.armor_points(), ArmorPoints::new(15));
     }
 
     #[test]

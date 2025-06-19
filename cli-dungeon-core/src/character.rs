@@ -347,18 +347,17 @@ mod tests {
             .unwrap();
         assert_eq!(character.quest_points, QuestPoint::new(0));
 
-        // Start quest
         character::quest(&pool, &character_info).await.unwrap();
 
         let enemy_party_id = cli_dungeon_database::create_party(&pool).await;
 
-        let enemy_1 = MonsterType::TestMonsterWithDagger;
+        let enemy = MonsterType::TestMonsterWithDagger;
 
-        let enemy_1_id = cli_dungeon_database::create_monster(&pool, enemy_1, enemy_party_id)
+        let enemy_id = cli_dungeon_database::create_monster(&pool, enemy, enemy_party_id)
             .await
             .id;
 
-        let rotation = vec![character_info.id, enemy_1_id];
+        let rotation = vec![character_info.id, enemy_id];
 
         let encounter_id = cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
 
@@ -373,5 +372,13 @@ mod tests {
             .unwrap();
 
         assert_eq!(character.quest_points, QuestPoint::new(1));
+
+        play(&pool, false, &character_info).await.unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        assert_eq!(character.quest_points, QuestPoint::new(2));
     }
 }

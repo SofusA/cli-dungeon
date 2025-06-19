@@ -9,6 +9,7 @@ pub enum ArmorType {
     Splint,
 }
 
+#[derive(Debug, Clone)]
 pub struct Armor {
     pub name: String,
     pub cost: Gold,
@@ -50,14 +51,14 @@ impl ArmorType {
             ArmorType::Chainmail => Armor {
                 name: self.to_name(),
                 cost: Gold::new(150),
-                armor_bonus: ArmorPoints::new(4),
-                max_dexterity_bonus: AbilityScoreBonus::new(4),
+                armor_bonus: ArmorPoints::new(3),
+                max_dexterity_bonus: AbilityScoreBonus::new(2),
                 strength_requirement: Strength::new(14),
             },
             ArmorType::Splint => Armor {
                 name: self.to_name(),
                 cost: Gold::new(200),
-                armor_bonus: ArmorPoints::new(7),
+                armor_bonus: ArmorPoints::new(5),
                 max_dexterity_bonus: AbilityScoreBonus::new(0),
                 strength_requirement: Strength::new(16),
             },

@@ -40,7 +40,9 @@ pub fn roll_success(dice: &Dice) -> bool {
     rand::random_range(1..=max) == max
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(
+    Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
+)]
 pub enum Dice {
     D4,
     D6,

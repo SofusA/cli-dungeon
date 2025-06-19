@@ -512,14 +512,23 @@ pub struct Attack {
 #[cfg(test)]
 mod tests {
     use cli_dungeon_rules::{
+        abilities::AbilityType,
+        armor::ArmorType,
+        classes::{ClassType, LevelUpChoice},
         conditions::{ActiveCondition, ConditionType},
         items::HealingStats,
         monsters::MonsterType,
         spells::SpellType,
         types::{HealthPoints, Turn},
+        weapons::WeaponType,
     };
+    use rand::seq::SliceRandom;
 
-    use crate::{advance_turn, turn::character_take_turn};
+    use crate::{
+        advance_turn,
+        character::create_character,
+        turn::{Action, BonusAction, character_take_turn},
+    };
 
     #[sqlx::test]
     async fn can_skip_turn(pool: sqlx::Pool<sqlx::Sqlite>) {
@@ -688,5 +697,179 @@ mod tests {
             .unwrap();
 
         assert_eq!(monster_2.active_conditions, vec![]);
+    }
+
+    #[sqlx::test]
+    async fn str_and_dex_builds_are_equal(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+        let rounds = 100;
+        let mut dex_wins = 0;
+        let mut str_wins = 0;
+
+        for _ in 0..rounds {
+            let dex = create_character(&pool, "dex".to_string(), 0, 6, 4)
+                .await
+                .unwrap();
+
+            cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::Leather).await;
+            cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
+            cli_dungeon_database::equip_offhand(&pool, &dex.id, WeaponType::Shortsword).await;
+
+            let str = create_character(&pool, "str".to_string(), 6, 0, 4)
+                .await
+                .unwrap();
+
+            cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::Chainmail).await;
+            cli_dungeon_database::equip_weapon(&pool, &str.id, WeaponType::Longsword).await;
+            cli_dungeon_database::equip_offhand(&pool, &str.id, WeaponType::Shield).await;
+
+            let mut rotation = vec![dex.id, str.id];
+            let encounter_id =
+                cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
+
+            for character_id in rotation.iter() {
+                cli_dungeon_database::set_encounter_id(&pool, character_id, Some(encounter_id))
+                    .await;
+            }
+
+            rotation.shuffle(&mut rand::rng());
+
+            loop {
+                let encounter = cli_dungeon_database::get_encounter(&pool, &encounter_id)
+                    .await
+                    .unwrap();
+
+                if !encounter.dead_characters.is_empty() {
+                    let dead = encounter.dead_characters.first().unwrap();
+                    if dead.name == "str" {
+                        dex_wins += 1;
+                    }
+
+                    if dead.name == "dex" {
+                        str_wins += 1;
+                    }
+                    break;
+                }
+
+                let first = encounter.rotation.first().unwrap();
+                let last = encounter.rotation.last().unwrap();
+
+                character_take_turn(
+                    &pool,
+                    first,
+                    &encounter,
+                    Some(Action::Attack(last.id)),
+                    Some(BonusAction::OffhandAttack(last.id)),
+                )
+                .await;
+            }
+        }
+
+        println!("dex wins: {dex_wins}");
+        println!("str wins: {str_wins}");
+
+        let win_dif: i32 = dex_wins - str_wins;
+        let win_dif = win_dif.abs();
+
+        assert!(win_dif < 20);
+    }
+
+    #[sqlx::test]
+    async fn high_level_str_and_dex_builds_are_equal(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+        let rounds = 100;
+        let mut dex_wins = 0;
+        let mut str_wins = 0;
+
+        for _ in 0..rounds {
+            let dex = create_character(&pool, "dex".to_string(), 0, 6, 4)
+                .await
+                .unwrap();
+
+            cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::Leather).await;
+            cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
+            cli_dungeon_database::equip_offhand(&pool, &dex.id, WeaponType::Shortsword).await;
+            for _ in 0..2 {
+                cli_dungeon_database::add_level_up_choice(
+                    &pool,
+                    &dex.id,
+                    LevelUpChoice {
+                        ability_increment: AbilityType::Dexterity,
+                        class: ClassType::Fighter,
+                    },
+                )
+                .await
+                .unwrap();
+            }
+
+            let str = create_character(&pool, "str".to_string(), 6, 0, 4)
+                .await
+                .unwrap();
+
+            cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::Splint).await;
+            cli_dungeon_database::equip_weapon(&pool, &str.id, WeaponType::Longsword).await;
+            cli_dungeon_database::equip_offhand(&pool, &str.id, WeaponType::Shield).await;
+            for _ in 0..2 {
+                cli_dungeon_database::add_level_up_choice(
+                    &pool,
+                    &str.id,
+                    LevelUpChoice {
+                        ability_increment: AbilityType::Strength,
+                        class: ClassType::Fighter,
+                    },
+                )
+                .await
+                .unwrap();
+            }
+
+            let mut rotation = vec![dex.id, str.id];
+            let encounter_id =
+                cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
+
+            for character_id in rotation.iter() {
+                cli_dungeon_database::set_encounter_id(&pool, character_id, Some(encounter_id))
+                    .await;
+            }
+
+            rotation.shuffle(&mut rand::rng());
+
+            loop {
+                let encounter = cli_dungeon_database::get_encounter(&pool, &encounter_id)
+                    .await
+                    .unwrap();
+
+                if !encounter.dead_characters.is_empty() {
+                    let dead = encounter.dead_characters.first().unwrap();
+                    if dead.name == "str" {
+                        dex_wins += 1;
+                    }
+
+                    if dead.name == "dex" {
+                        str_wins += 1;
+                    }
+                    break;
+                }
+
+                let first = encounter.rotation.first().unwrap();
+                let last = encounter.rotation.last().unwrap();
+
+                character_take_turn(
+                    &pool,
+                    first,
+                    &encounter,
+                    Some(Action::Attack(last.id)),
+                    Some(BonusAction::OffhandAttack(last.id)),
+                )
+                .await;
+            }
+        }
+
+        println!("dex wins: {dex_wins}");
+        println!("str wins: {str_wins}");
+
+        let win_dif: i32 = dex_wins - str_wins;
+        let win_dif = win_dif.abs();
+
+        assert!(win_dif < 20);
     }
 }
