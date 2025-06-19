@@ -112,9 +112,9 @@ async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
 
     let monsters: Vec<_> = join_all(
         cli_dungeon_rules::monsters::get_monster_encounter(player.level())
-            .iter()
+            .into_iter()
             .map(async |enemy| {
-                cli_dungeon_database::create_monster(pool, *enemy, enemy_party_id)
+                cli_dungeon_database::create_monster(pool, enemy, enemy_party_id)
                     .await
                     .id
             }),
@@ -150,13 +150,12 @@ async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
             .unwrap();
 
         match encounter.rotation.first() {
-            Some(turn) => {
-                if turn.player {
-                    break;
+            Some(turn) => match &turn.character_type {
+                cli_dungeon_rules::character::CharacterType::Player => break,
+                cli_dungeon_rules::character::CharacterType::Monster(_) => {
+                    outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
                 }
-
-                outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
-            }
+            },
             None => break,
         }
     }

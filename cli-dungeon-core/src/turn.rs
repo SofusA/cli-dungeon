@@ -178,8 +178,10 @@ async fn character_take_turn(
                     }
                     SpellAction::Projectile(_) => (),
                 },
-                cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                    let new_health = active_character.current_health + health_points;
+                cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
+                    let health_roll = health_stats.roll();
+
+                    let new_health = active_character.current_health + health_roll;
                     cli_dungeon_database::set_character_health(
                         pool,
                         &active_character.id,
@@ -188,7 +190,7 @@ async fn character_take_turn(
                     .await;
                     outcome_list.push(TurnOutcome::Healed((
                         active_character.name.clone(),
-                        health_points,
+                        health_roll,
                     )));
                 }
                 cli_dungeon_rules::items::ItemAction::Projectile(_) => (),
@@ -228,12 +230,12 @@ async fn character_take_turn(
                             outcome_list.append(&mut outcome);
                         }
                     },
-                    cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                        let new_health = target.current_health + health_points;
+                    cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
+                        let health_roll = health_stats.roll();
+                        let new_health = target.current_health + health_roll;
                         cli_dungeon_database::set_character_health(pool, &target.id, new_health)
                             .await;
-                        outcome_list
-                            .push(TurnOutcome::Healed((target.name.clone(), health_points)));
+                        outcome_list.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
                     }
                     cli_dungeon_rules::items::ItemAction::Projectile(projectile_attack_stats) => {
                         let attack = active_character
@@ -284,8 +286,9 @@ async fn character_take_turn(
                     }
                     SpellAction::Projectile(_) => (),
                 },
-                cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                    let new_health = active_character.current_health + health_points;
+                cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
+                    let health_roll = health_stats.roll();
+                    let new_health = active_character.current_health + health_roll;
                     cli_dungeon_database::set_character_health(
                         pool,
                         &active_character.id,
@@ -294,7 +297,7 @@ async fn character_take_turn(
                     .await;
                     outcome_list.push(TurnOutcome::Healed((
                         active_character.name.clone(),
-                        health_points,
+                        health_roll,
                     )));
                 }
                 cli_dungeon_rules::items::ItemAction::Projectile(_) => (),
@@ -334,12 +337,12 @@ async fn character_take_turn(
                             outcome_list.append(&mut outcome);
                         }
                     },
-                    cli_dungeon_rules::items::ItemAction::Healing(health_points) => {
-                        let new_health = target.current_health + health_points;
+                    cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
+                        let health_roll = health_stats.roll();
+                        let new_health = target.current_health + health_roll;
                         cli_dungeon_database::set_character_health(pool, &target.id, new_health)
                             .await;
-                        outcome_list
-                            .push(TurnOutcome::Healed((target.name.clone(), health_points)));
+                        outcome_list.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
                     }
                     cli_dungeon_rules::items::ItemAction::Projectile(projectile_attack_stats) => {
                         let attack = active_character
@@ -476,13 +479,12 @@ pub async fn take_turn(
             .unwrap();
 
         match encounter.rotation.first() {
-            Some(turn) => {
-                if turn.player {
-                    break;
+            Some(turn) => match &turn.character_type {
+                cli_dungeon_rules::character::CharacterType::Player => break,
+                cli_dungeon_rules::character::CharacterType::Monster(_) => {
+                    outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
                 }
-
-                outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
-            }
+            },
             None => break,
         }
     }
@@ -511,6 +513,7 @@ pub struct Attack {
 mod tests {
     use cli_dungeon_rules::{
         conditions::{ActiveCondition, ConditionType},
+        items::HealingStats,
         monsters::MonsterType,
         spells::SpellType,
         types::{HealthPoints, Turn},
@@ -595,7 +598,10 @@ mod tests {
             &encounter,
             None,
             Some(crate::turn::BonusAction::Item(
-                cli_dungeon_rules::items::ItemAction::Healing(HealthPoints::new(1)),
+                cli_dungeon_rules::items::ItemAction::Healing(HealingStats {
+                    dice: vec![],
+                    bonus: HealthPoints::new(1),
+                }),
             )),
         )
         .await;

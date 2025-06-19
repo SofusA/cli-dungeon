@@ -291,7 +291,7 @@ mod tests {
     use crate::{
         character::{self, create_character, short_rest},
         errors::GameError,
-        play, shop,
+        play,
     };
 
     #[sqlx::test]
@@ -341,30 +341,6 @@ mod tests {
             .await
             .unwrap();
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
-
-        let main_hand = "shortsword".to_string();
-        let offhand = "dagger".to_string();
-        let armor = "leather".to_string();
-        shop::buy(&pool, &character_info, main_hand.clone())
-            .await
-            .unwrap();
-        shop::buy(&pool, &character_info, offhand.clone())
-            .await
-            .unwrap();
-        shop::buy(&pool, &character_info, armor.clone())
-            .await
-            .unwrap();
-
-        // Equip
-        character::equip_main_hand(&pool, &character_info, main_hand)
-            .await
-            .unwrap();
-        character::equip_offhand(&pool, &character_info, offhand)
-            .await
-            .unwrap();
-        character::equip_armor(&pool, &character_info, armor)
-            .await
-            .unwrap();
 
         let character = cli_dungeon_database::get_character(&pool, &character_info.id)
             .await

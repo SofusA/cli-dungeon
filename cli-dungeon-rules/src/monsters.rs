@@ -35,7 +35,7 @@ fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
     ]
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub enum MonsterType {
     TestMonster,
     TestMonsterWithDagger,

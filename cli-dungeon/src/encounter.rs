@@ -343,8 +343,9 @@ mod tests {
     use cli_dungeon_rules::{
         Encounter, Status,
         abilities::AbilityScores,
-        character::Character,
+        character::{Character, CharacterType},
         items::ItemType,
+        monsters::MonsterType,
         types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
     };
 
@@ -352,11 +353,11 @@ mod tests {
 
     fn setup() -> (Encounter, Character) {
         let scroll_of_weaken = ItemType::ScrollOfWeaken;
-        let healing_potion = ItemType::MinorHealingPotion;
+        let healing_potion = ItemType::PotionOfHealing;
         let character = Character {
             id: 1,
             name: "Testington".to_string(),
-            player: true,
+            character_type: CharacterType::Player,
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
                 strength: Strength::new(8),
@@ -384,7 +385,7 @@ mod tests {
         let monster = Character {
             id: 2,
             name: "monster".to_string(),
-            player: false,
+            character_type: CharacterType::Monster(MonsterType::TestMonster),
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
                 strength: Strength::new(8),
@@ -439,7 +440,7 @@ mod tests {
         let (encounter, character) = setup();
 
         let script = r#"
-            react("scrollofweaken", 2, "MinorHealingPotion");
+            react("scrollofweaken", 2, "PotionOfHealing");
         "#;
 
         let ast = engine.compile(script).unwrap();
@@ -452,7 +453,7 @@ mod tests {
         );
         assert_eq!(
             result.1.unwrap(),
-            BonusAction::Item(ItemType::MinorHealingPotion.item_action())
+            BonusAction::Item(ItemType::PotionOfHealing.item_action())
         );
     }
 

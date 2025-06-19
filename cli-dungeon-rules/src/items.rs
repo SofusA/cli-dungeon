@@ -1,6 +1,7 @@
 use crate::{
     Dice,
     abilities::AbilityScaling,
+    roll,
     spells::{SpellAction, SpellType},
     types::{AbilityScoreBonus, Gold, HealthPoints},
     weapons::WeaponAttackStats,
@@ -12,7 +13,7 @@ use crate::{
 pub enum ItemType {
     Stone,
     ScrollOfWeaken,
-    MinorHealingPotion,
+    PotionOfHealing,
 }
 
 pub enum ActionType {
@@ -27,10 +28,22 @@ pub struct Item {
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct HealingStats {
+    pub dice: Vec<Dice>,
+    pub bonus: HealthPoints,
+}
+
+impl HealingStats {
+    pub fn roll(self) -> HealthPoints {
+        HealthPoints::new(self.dice.iter().map(roll).sum()) + self.bonus
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum ItemAction {
     Spell(SpellAction),
     Projectile(WeaponAttackStats),
-    Healing(HealthPoints),
+    Healing(HealingStats),
 }
 
 impl ItemType {
@@ -49,7 +62,7 @@ impl ItemType {
         match string.as_str() {
             "stone" => Some(Self::Stone),
             "scroll of weaken" => Some(Self::ScrollOfWeaken),
-            "minor healing potion" => Some(Self::MinorHealingPotion),
+            "minor healing potion" => Some(Self::PotionOfHealing),
             _ => None,
         }
     }
@@ -71,10 +84,13 @@ impl ItemType {
                 cost: Gold::new(1000),
                 action: ActionType::Action(ItemAction::Spell(SpellType::Weaken.spell_action())),
             },
-            ItemType::MinorHealingPotion => Item {
+            ItemType::PotionOfHealing => Item {
                 name: self.to_name(),
                 cost: Gold::new(500),
-                action: ActionType::BonusAction(ItemAction::Healing(HealthPoints::new(10))),
+                action: ActionType::BonusAction(ItemAction::Healing(HealingStats {
+                    dice: vec![Dice::D4, Dice::D4],
+                    bonus: HealthPoints::new(2),
+                })),
             },
         }
     }

@@ -36,8 +36,8 @@ fn loot_catalogue() -> Vec<LootChances> {
             ],
             items: vec![
                 (ItemType::Stone, Dice::D4),
-                (ItemType::MinorHealingPotion, Dice::D4),
-                (ItemType::MinorHealingPotion, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
             ],
             jewelry: vec![
                 (JewelryType::BrassRing, Dice::D8),
@@ -57,9 +57,9 @@ fn loot_catalogue() -> Vec<LootChances> {
             ],
             items: vec![
                 (ItemType::Stone, Dice::D4),
-                (ItemType::MinorHealingPotion, Dice::D4),
-                (ItemType::MinorHealingPotion, Dice::D4),
-                (ItemType::MinorHealingPotion, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
                 (ItemType::ScrollOfWeaken, Dice::D6),
             ],
             jewelry: vec![(JewelryType::RingOfProtection, Dice::D8)],

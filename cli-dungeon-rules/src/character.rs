@@ -6,6 +6,7 @@ use crate::{
     conditions::ActiveCondition,
     items::{ActionType, ItemAction, ItemType},
     jewelry::JewelryType,
+    monsters::MonsterType,
     roll,
     types::{
         AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold, HealthPoints,
@@ -14,11 +15,17 @@ use crate::{
     weapons::{WeaponAttackStats, WeaponType},
 };
 
+#[derive(Debug, Clone, serde::Deserialize, serde::Serialize)]
+pub enum CharacterType {
+    Player,
+    Monster(MonsterType),
+}
+
 #[derive(Clone)]
 pub struct Character {
     pub id: i64,
     pub name: String,
-    pub player: bool,
+    pub character_type: CharacterType,
     pub current_health: HealthPoints,
     pub base_ability_scores: AbilityScores,
     pub gold: Gold,
@@ -328,16 +335,15 @@ impl Character {
             };
 
         let armor_bonus = armor
+            .filter(|x| x.strength_requirement <= self.ability_scores().strength)
             .map(|armor| armor.armor_bonus)
-            .unwrap_or(ArmorPoints::new(10));
+            .unwrap_or(ArmorPoints::new(0));
         let main_hand_bonus = self
             .equipped_weapon
-            .as_ref()
             .map(|weapon| weapon.to_weapon().armor_bonus)
             .unwrap_or(ArmorPoints::new(0));
         let offhand_bonus = self
             .equipped_offhand
-            .as_ref()
             .map(|weapon| weapon.to_weapon().armor_bonus)
             .unwrap_or(ArmorPoints::new(0));
 
@@ -392,10 +398,15 @@ mod tests {
     use crate::{
         Status,
         abilities::AbilityScores,
-        character::{AvailableAction, AvailableActionDefinition, Character},
+        armor::ArmorType,
+        character::{AvailableAction, AvailableActionDefinition, Character, CharacterType},
         items::ItemType,
         spells::SpellType,
-        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+        types::{
+            AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold,
+            HealthPoints, QuestPoint, Strength,
+        },
+        weapons::WeaponType,
     };
 
     #[test]
@@ -404,7 +415,7 @@ mod tests {
         let character = Character {
             id: 1,
             name: "Testington".to_string(),
-            player: true,
+            character_type: CharacterType::Player,
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
                 strength,
@@ -445,12 +456,12 @@ mod tests {
     #[test]
     fn correct_available_actions() {
         let scroll_of_weaken = ItemType::ScrollOfWeaken;
-        let healing_potion = ItemType::MinorHealingPotion;
+        let healing_potion = ItemType::PotionOfHealing;
 
         let character = Character {
             id: 1,
             name: "Testington".to_string(),
-            player: true,
+            character_type: CharacterType::Player,
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
                 strength: Strength::new(8),
@@ -512,5 +523,157 @@ mod tests {
                 },
             ]
         )
+    }
+
+    #[test]
+    fn correct_armor_bonus_without_armor() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(8),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(
+            character.ability_scores().dexterity.ability_score_bonus(),
+            AbilityScoreBonus::new(-1)
+        );
+        assert_eq!(
+            character.armor_points(),
+            ArmorPoints::new(10)
+                + ArmorPoints::new(*character.ability_scores().dexterity.ability_score_bonus())
+        );
+        assert_eq!(character.armor_points(), ArmorPoints::new(9));
+    }
+
+    #[test]
+    fn correct_armor_bonus_with_armor() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: Some(WeaponType::Shield),
+            equipped_armor: Some(ArmorType::Leather),
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(
+            character.ability_scores().dexterity.ability_score_bonus(),
+            AbilityScoreBonus::new(1)
+        );
+        assert_eq!(
+            character.armor_points(),
+            ArmorPoints::new(10)
+                + ArmorType::Leather.to_armor().armor_bonus
+                + ArmorPoints::new(*character.ability_scores().dexterity.ability_score_bonus())
+                + WeaponType::Shield.to_weapon().armor_bonus
+        );
+        assert_eq!(character.armor_points(), ArmorPoints::new(14));
+    }
+
+    #[test]
+    fn correct_armor_bonus_with_armor_with_insufficient_strength() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: Some(ArmorType::Splint),
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(character.armor_points(), ArmorPoints::new(10));
+    }
+
+    #[test]
+    fn correct_armor_bonus_with_medium_armor_with_insufficient_strength() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: None,
+            equipped_offhand: None,
+            equipped_armor: Some(ArmorType::Chainmail),
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(character.armor_points(), ArmorPoints::new(11));
     }
 }

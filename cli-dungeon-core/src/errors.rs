@@ -60,6 +60,9 @@ pub enum GameError {
     #[error("Too many jewelries equipped. Unequip one first")]
     TooManyJewelriesEquipped,
 
+    #[error("Item is not available in the shop")]
+    NotInShop,
+
     #[error(transparent)]
     Database(#[from] DatabaseError),
 }

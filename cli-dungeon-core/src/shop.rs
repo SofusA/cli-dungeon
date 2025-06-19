@@ -19,7 +19,7 @@ pub fn available_in_shop() -> Shop {
             WeaponType::Shield,
         ],
         armor: vec![ArmorType::Leather, ArmorType::Chainmail],
-        items: vec![ItemType::MinorHealingPotion],
+        items: vec![ItemType::PotionOfHealing],
     }
 }
 
@@ -28,81 +28,64 @@ pub async fn buy(
     character_info: &CharacterInfo,
     item: String,
 ) -> Result<(), GameError> {
+    validate_player(pool, character_info).await?;
+    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
+
     if let Some(weapon) = WeaponType::from_weapon_str(&item) {
-        return buy_weapon(pool, character_info, weapon).await;
+        if !available_in_shop().weapons.contains(&weapon) {
+            return Err(GameError::NotInShop);
+        }
+
+        let stats = weapon.to_weapon();
+
+        if character.gold < stats.cost {
+            return Err(GameError::InsufficientGold);
+        }
+
+        let new_gold = character.gold - stats.cost;
+
+        cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
+        cli_dungeon_database::add_weapon_to_inventory(pool, &character_info.id, weapon).await?;
+        return Ok(());
     };
 
     if let Some(armor) = ArmorType::from_armor_str(&item) {
-        return buy_armor(pool, character_info, armor).await;
+        if !available_in_shop().armor.contains(&armor) {
+            return Err(GameError::NotInShop);
+        }
+
+        let stats = armor.to_armor();
+
+        if character.gold < stats.cost {
+            return Err(GameError::InsufficientGold);
+        }
+
+        let new_gold = character.gold - stats.cost;
+
+        cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
+        cli_dungeon_database::add_armor_to_inventory(pool, &character_info.id, armor).await?;
+        return Ok(());
     };
 
     if let Some(item) = ItemType::from_item_str(&item) {
-        return buy_item(pool, character_info, item).await;
+        if !available_in_shop().items.contains(&item) {
+            return Err(GameError::NotInShop);
+        }
+
+        let stats = item.to_item();
+
+        if character.gold < stats.cost {
+            return Err(GameError::InsufficientGold);
+        }
+
+        let new_gold = character.gold - stats.cost;
+
+        cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
+        cli_dungeon_database::add_item_to_inventory(pool, &character_info.id, item).await?;
+        return Ok(());
     };
 
     Err(GameError::UnknownItem)
-}
-
-async fn buy_weapon(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-    weapon: WeaponType,
-) -> Result<(), GameError> {
-    validate_player(pool, character_info).await?;
-
-    let stats = weapon.to_weapon();
-    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
-
-    let new_gold = character.gold - stats.cost;
-    if new_gold < Gold::new(0) {
-        return Err(GameError::InsufficientGold);
-    }
-
-    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
-    cli_dungeon_database::add_weapon_to_inventory(pool, &character_info.id, weapon).await?;
-
-    Ok(())
-}
-
-async fn buy_armor(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-    armor: ArmorType,
-) -> Result<(), GameError> {
-    validate_player(pool, character_info).await?;
-
-    let stats = armor.to_armor();
-    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
-
-    let new_gold = character.gold - stats.cost;
-    if new_gold < Gold::new(0) {
-        return Err(GameError::InsufficientGold);
-    }
-
-    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
-    cli_dungeon_database::add_armor_to_inventory(pool, &character_info.id, armor).await?;
-    Ok(())
-}
-
-async fn buy_item(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-    item: ItemType,
-) -> Result<(), GameError> {
-    validate_player(pool, character_info).await?;
-
-    let stats = item.to_item();
-    let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
-
-    let new_gold = character.gold - stats.cost;
-    if new_gold < Gold::new(0) {
-        return Err(GameError::InsufficientGold);
-    }
-
-    cli_dungeon_database::set_character_gold(pool, &character_info.id, new_gold).await;
-    cli_dungeon_database::add_item_to_inventory(pool, &character_info.id, item).await?;
-
-    Ok(())
 }
 
 pub async fn sell(

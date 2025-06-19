@@ -1,7 +1,7 @@
 CREATE TABLE characters (
     name TEXT NOT NULL,
     secret INTEGER NOT NULL,
-    player BOOLEAN NOT NULL,
+    character_type TEXT NOT NULL,
     gold INTEGER NOT NULL DEFAULT 0,
     experience INTEGER NOT NULL DEFAULT 0,
     base_ability_scores TEXT NOT NULL,

@@ -2,7 +2,7 @@ use cli_dungeon_rules::{
     Encounter, Status,
     abilities::AbilityScores,
     armor::ArmorType,
-    character::{Character, max_health},
+    character::{Character, CharacterType, max_health},
     classes::LevelUpChoice,
     conditions::ActiveCondition,
     items::ItemType,
@@ -56,7 +56,7 @@ struct CharacterRow {
     rowid: i64,
     secret: i64,
     name: String,
-    player: bool,
+    character_type: Json<CharacterType>,
     base_ability_scores: Json<AbilityScores>,
     current_health: i64,
     gold: i64,
@@ -103,7 +103,7 @@ impl From<CharacterRow> for Character {
         Character {
             id: row.rowid,
             name: row.name,
-            player: row.player,
+            character_type: row.character_type.0,
             gold: Gold::new(row.gold as u16),
             experience: Experience::new(row.experience as u32),
             base_ability_scores: row.base_ability_scores.0,
@@ -158,11 +158,13 @@ pub async fn create_player_character(
     let status_json = to_string(&DbStatus::Resting).unwrap();
     let active_condition_json = to_string(&active_conditions).unwrap();
 
+    let character_type = to_string(&CharacterType::Player).unwrap();
+
     let result = sqlx::query!(
         r#"
             insert into characters (secret,
             name,
-            player,
+            character_type,
             gold,
             base_ability_scores,
             current_health,
@@ -180,8 +182,8 @@ pub async fn create_player_character(
             "#,
         secret,
         name,
-        true,
-        100,
+        character_type,
+        30,
         base_ability_scores_serialized,
         *health,
         weapon_inventory_json,
@@ -270,6 +272,7 @@ pub async fn set_encounter_id(pool: &Pool, character_id: &i64, encounter_id: Opt
 }
 
 pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) -> CharacterInfo {
+    let character_type = to_string(&CharacterType::Monster(monster)).unwrap();
     let monster = monster.to_monster();
 
     let base_ability_scores_serialized = to_string(&monster.base_ability_scores).unwrap();
@@ -297,7 +300,7 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
             insert into characters (
             secret,
             name,
-            player,
+            character_type ,
             gold,
             experience,
             base_ability_scores,
@@ -318,7 +321,7 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
         "#,
         secret,
         monster.name,
-        false,
+        character_type ,
         *monster.gold,
         *monster.experience,
         base_ability_scores_serialized,
@@ -416,7 +419,7 @@ async fn get_character_row(pool: &Pool, id: &i64) -> Result<CharacterRow, Databa
             rowid,
             name,
             secret,
-            player,
+            character_type as "character_type: Json<CharacterType>",
             gold,
             experience,
             base_ability_scores as "base_ability_scores: Json<AbilityScores>",

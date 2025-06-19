@@ -443,7 +443,9 @@ mod tests {
 
         assert_eq!(starting_character.experience_level(), Level::new(0));
 
-        let starting_gold = starting_character.gold;
+        let starting_gold = Gold::new(100);
+        cli_dungeon_database::set_character_gold(&pool, &starting_character.id, starting_gold)
+            .await;
 
         // Shop
         let main_hand = "shortsword".to_string();
