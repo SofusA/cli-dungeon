@@ -19,7 +19,10 @@ pub fn get_loot(level: Level) -> Loot {
 fn loot_catalogue() -> Vec<LootChances> {
     vec![
         LootChances {
-            weapons: vec![(WeaponType::Dagger, Dice::D4)],
+            weapons: vec![
+                (WeaponType::Dagger, Dice::D4),
+                (WeaponType::Shield, Dice::D4),
+            ],
             armor: vec![(ArmorType::Leather, Dice::D4)],
             items: vec![(ItemType::Stone, Dice::D4)],
             jewelry: vec![],
@@ -32,7 +35,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             ],
             armor: vec![
                 (ArmorType::Leather, Dice::D8),
-                (ArmorType::Chainmail, Dice::D8),
+                (ArmorType::BreastPlate, Dice::D8),
             ],
             items: vec![
                 (ItemType::Stone, Dice::D4),
@@ -52,7 +55,8 @@ fn loot_catalogue() -> Vec<LootChances> {
             ],
             armor: vec![
                 (ArmorType::Leather, Dice::D8),
-                (ArmorType::Chainmail, Dice::D8),
+                (ArmorType::BreastPlate, Dice::D8),
+                (ArmorType::StudedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![

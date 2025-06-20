@@ -47,7 +47,7 @@ pub struct Character {
 }
 
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {
-    let health = 12 + 6 * *level as i16 + *constitution.ability_score_bonus();
+    let health = 12 + 6 * *level as i16 + *constitution.ability_score_bonus() * 2;
     HealthPoints::new(health)
 }
 
@@ -61,9 +61,9 @@ pub fn experience_gain(level: Level) -> Experience {
     let level = *level as usize;
     match level {
         0 => Experience::new(10),
-        1 => Experience::new(100),
-        2 => Experience::new(150),
-        3 => Experience::new(250),
+        1 => Experience::new(30),
+        2 => Experience::new(50),
+        3 => Experience::new(100),
         4 => Experience::new(300),
         5 => Experience::new(500),
         6 => Experience::new(750),
@@ -96,6 +96,7 @@ pub struct AvailableActionDefinition {
     pub requires_target: bool,
 }
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct AvailableBonusActionDefinition {
     pub name: String,
     pub action: AvailableAction,
@@ -164,6 +165,13 @@ impl Character {
         }
     }
 
+    pub fn healing_potion(&self) -> Option<ItemAction> {
+        self.item_inventory
+            .iter()
+            .find(|x| matches!(x.item_action(), ItemAction::Healing(_)))
+            .map(|x| x.item_action())
+    }
+
     pub fn available_actions(&self) -> Vec<AvailableActionDefinition> {
         let mut actions: Vec<_> = self
             .item_inventory
@@ -194,7 +202,7 @@ impl Character {
         actions
     }
 
-    pub fn available_bonus_actions(&self) -> Vec<AvailableActionDefinition> {
+    pub fn available_bonus_actions(&self) -> Vec<AvailableBonusActionDefinition> {
         let mut actions: Vec<_> = self
             .item_inventory
             .iter()
@@ -208,25 +216,33 @@ impl Character {
                 ItemAction::Projectile(_) => (action.0, action.1, true),
                 ItemAction::Healing(_) => (action.0, action.1, false),
             })
-            .map(|action| AvailableActionDefinition {
+            .map(|action| AvailableBonusActionDefinition {
                 name: action.0,
                 action: AvailableAction::Item(action.1),
                 requires_target: action.2,
             })
             .collect();
 
-        actions.push(AvailableActionDefinition {
-            name: "attack".to_string(),
-            action: AvailableAction::Attack,
-            requires_target: true,
-        });
+        if self.can_attack_with_offhand() {
+            actions.push(AvailableBonusActionDefinition {
+                name: "attack".to_string(),
+                action: AvailableAction::Attack,
+                requires_target: true,
+            });
+        }
 
         actions
     }
 
+    pub fn can_attack_with_offhand(&self) -> bool {
+        self.equipped_offhand
+            .is_some_and(|offhand| !offhand.to_weapon().attack_stats.attack_dices.is_empty())
+            || self.equipped_offhand.is_none()
+    }
+
     pub fn experience_level(&self) -> Level {
         let thresholds = [
-            30, 300, 900,
+            100, 300, 900,
             // 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
         ];
 
@@ -318,7 +334,7 @@ impl Character {
     }
 
     pub fn is_alive(&self) -> bool {
-        *self.current_health > 0
+        *self.current_health >= 0
     }
 
     pub fn armor_points(&self) -> ArmorPoints {
@@ -403,7 +419,10 @@ mod tests {
         Status,
         abilities::AbilityScores,
         armor::ArmorType,
-        character::{AvailableAction, AvailableActionDefinition, Character, CharacterType},
+        character::{
+            AvailableAction, AvailableActionDefinition, AvailableBonusActionDefinition, Character,
+            CharacterType,
+        },
         items::ItemType,
         spells::SpellType,
         types::{
@@ -515,12 +534,12 @@ mod tests {
         assert_eq!(
             actual_bonus_actions,
             vec![
-                AvailableActionDefinition {
+                AvailableBonusActionDefinition {
                     name: "attack".to_string(),
                     action: AvailableAction::Attack,
                     requires_target: true
                 },
-                AvailableActionDefinition {
+                AvailableBonusActionDefinition {
                     name: healing_potion.to_item().name,
                     action: AvailableAction::Item(healing_potion.item_action()),
                     requires_target: false
@@ -664,7 +683,7 @@ mod tests {
             experience: Experience::new(0),
             equipped_weapon: None,
             equipped_offhand: None,
-            equipped_armor: Some(ArmorType::Chainmail),
+            equipped_armor: Some(ArmorType::BreastPlate),
             equipped_jewelry: vec![],
             weapon_inventory: vec![],
             armor_inventory: vec![],

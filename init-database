@@ -1,5 +1,0 @@
-#!/bin/bash
-cd cli-dungeon-database
-cargo sqlx db create && cargo sqlx migrate run
-cd ..
-

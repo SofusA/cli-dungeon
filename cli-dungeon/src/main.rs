@@ -135,6 +135,7 @@ async fn main() -> Result<()> {
             )
             .await?;
             cli_dungeon_database::set_active_character(&pool, &character_info).await;
+            cli_dungeon_core::character::quest(&pool, &character_info).await?;
         }
         Commands::Character { command } => match command {
             CharacterCommands::Rest { command } => match command {
@@ -418,6 +419,64 @@ mod tests {
     use crate::handle_encounter;
 
     #[sqlx::test]
+    async fn can_die(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+
+        // Create
+        let starting_str_bonus = 0;
+        let starting_dex_bonus = 6;
+        let starting_con_bonus = 4;
+
+        let character_info = cli_dungeon_core::character::create_character(
+            &pool,
+            "testington".to_string(),
+            starting_str_bonus,
+            starting_dex_bonus,
+            starting_con_bonus,
+        )
+        .await
+        .unwrap();
+        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+        cli_dungeon_core::character::quest(&pool, &character_info)
+            .await
+            .unwrap();
+
+        loop {
+            let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+                .await
+                .unwrap();
+
+            if !character.is_alive() {
+                break;
+            }
+
+            let enemy = MonsterType::Wolf;
+            let enemy_party_id = cli_dungeon_database::create_party(&pool).await;
+            let enemy_id = cli_dungeon_database::create_monster(&pool, enemy, enemy_party_id)
+                .await
+                .id;
+
+            let rotation = vec![character_info.id, enemy_id];
+
+            let encounter_id =
+                cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
+
+            for character_id in rotation.iter() {
+                cli_dungeon_database::set_encounter_id(&pool, character_id, Some(encounter_id))
+                    .await;
+            }
+
+            handle_encounter(&pool, &character_info).await;
+        }
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+
+        assert!(!character.is_alive());
+    }
+
+    #[sqlx::test]
     async fn it_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
@@ -493,6 +552,16 @@ mod tests {
             .await
             .id;
 
+        let enemy_1 = cli_dungeon_database::get_character(&pool, &enemy_1_id)
+            .await
+            .unwrap();
+        let enemy_2 = cli_dungeon_database::get_character(&pool, &enemy_2_id)
+            .await
+            .unwrap();
+        let enemy_3 = cli_dungeon_database::get_character(&pool, &enemy_3_id)
+            .await
+            .unwrap();
+
         let rotation = vec![character_info.id, enemy_1_id, enemy_2_id, enemy_3_id];
 
         let encounter_id = cli_dungeon_database::create_encounter(&pool, rotation.clone()).await;
@@ -508,9 +577,9 @@ mod tests {
             - WeaponType::Dagger.to_weapon().cost
             - WeaponType::Shortsword.to_weapon().cost
             - ArmorType::Leather.to_armor().cost
-            + enemy_1.to_monster().gold
-            + enemy_2.to_monster().gold
-            + enemy_3.to_monster().gold;
+            + enemy_1.gold
+            + enemy_2.gold
+            + enemy_3.gold;
 
         assert_eq!(updated_character.gold, expected_gold);
 
@@ -541,7 +610,7 @@ mod tests {
         );
         assert_eq!(updated_character.item_inventory, vec![ItemType::Stone]);
 
-        for _ in 0..2 {
+        for _ in 0..10 {
             cli_dungeon_core::character::rest(&pool, &character_info)
                 .await
                 .unwrap();
@@ -673,7 +742,5 @@ mod tests {
         let error_sell =
             cli_dungeon_core::shop::sell(&pool, &character_info, offhand.clone()).await;
         assert_eq!(error_sell, Err(GameError::WeaponNotInInventory));
-
-        // TODO: Assert the looooot (completed quest)
     }
 }

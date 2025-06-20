@@ -62,7 +62,15 @@ pub(crate) async fn monster_take_turn(
         .choose(&mut rand::rng());
 
     let action = target.map(Action::Attack);
-    let bonus_action = target.map(BonusAction::OffhandAttack);
+    let bonus_action = (monster.current_health < HealthPoints::new(5))
+        .then(|| monster.healing_potion().map(BonusAction::Item))
+        .flatten()
+        .or_else(|| {
+            monster
+                .can_attack_with_offhand()
+                .then_some(target.map(BonusAction::OffhandAttack))
+                .flatten()
+        });
 
     character_take_turn(pool, monster, encounter, action, bonus_action).await
 }
@@ -482,7 +490,11 @@ pub async fn take_turn(
             Some(turn) => match &turn.character_type {
                 cli_dungeon_rules::character::CharacterType::Player => break,
                 cli_dungeon_rules::character::CharacterType::Monster(_) => {
-                    outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
+                    if encounter.rotation.iter().map(|x| x.party).len() > 1 {
+                        outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
+                    } else {
+                        break;
+                    };
                 }
             },
             None => break,
@@ -719,7 +731,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::Chainmail).await;
+            cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::BreastPlate).await;
             cli_dungeon_database::equip_weapon(&pool, &str.id, WeaponType::Longsword).await;
             cli_dungeon_database::equip_offhand(&pool, &str.id, WeaponType::Shield).await;
 

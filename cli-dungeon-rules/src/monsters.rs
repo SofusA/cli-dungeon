@@ -9,7 +9,7 @@ use crate::{
     items::ItemType,
     jewelry::JewelryType,
     roll_success,
-    types::{Experience, Gold, Level},
+    types::{Constitution, Dexterity, Gold, Level, Strength},
     weapons::WeaponType,
 };
 
@@ -26,11 +26,18 @@ pub fn get_monster_encounter(level: Level) -> Vec<MonsterType> {
 
 fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
     vec![
-        vec![vec![MonsterType::Slime, MonsterType::TestMonsterWithDagger]],
+        vec![
+            vec![MonsterType::BeastLevel00],
+            vec![MonsterType::BeastLevel00, MonsterType::BeastLevel00],
+            vec![MonsterType::BeastLevel01],
+            vec![MonsterType::BanditLevel0],
+        ],
         vec![vec![MonsterType::Wolf]],
         vec![
             vec![MonsterType::Wolf, MonsterType::DireWolf],
             vec![MonsterType::Wolf, MonsterType::Wolf],
+            vec![MonsterType::GiantSpider],
+            vec![MonsterType::GiantToad],
         ],
     ]
 }
@@ -41,9 +48,13 @@ pub enum MonsterType {
     TestMonsterWithDagger,
     TestMonsterWithLeatherArmor,
     TestMonsterWithRingOfProtectionAndStone,
-    Slime,
+    BeastLevel00,
+    BeastLevel01,
+    BanditLevel0,
     Wolf,
     DireWolf,
+    GiantSpider,
+    GiantToad,
 }
 
 impl MonsterType {
@@ -109,62 +120,99 @@ impl MonsterType {
                 vec![],
                 vec![],
             ),
-            MonsterType::Slime => MonsterDefinition::new(
-                "Slime",
-                AbilityScores::new(4, 2, 2),
-                Gold::new(5),
+            MonsterType::BanditLevel0 => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (0, 0, 0),
+                Gold::new(10),
                 None,
-                None,
-                None,
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-            ),
-            MonsterType::Wolf => MonsterDefinition::new(
-                "Wolf",
-                AbilityScores::new(8, 10, 9),
-                Gold::new(5),
-                None,
-                None,
-                None,
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                vec![],
-                vec![LevelUpChoice {
-                    ability_increment: AbilityType::Dexterity,
-                    class: ClassType::Monster,
-                }],
-                vec![],
-            ),
-            MonsterType::DireWolf => MonsterDefinition::new(
-                "Dire wolf",
-                AbilityScores::new(8, 9, 9),
-                Gold::new(5),
-                None,
-                None,
-                None,
-                vec![],
-                vec![],
-                vec![],
-                vec![],
+                Some(WeaponType::Dagger),
+                Some(ArmorType::Leather),
+                vec![(WeaponType::Dagger, Some(Dice::D4))],
+                vec![(ArmorType::Leather, Some(Dice::D4))],
                 vec![],
                 vec![
-                    LevelUpChoice {
-                        ability_increment: AbilityType::Dexterity,
-                        class: ClassType::Monster,
-                    },
-                    LevelUpChoice {
-                        ability_increment: AbilityType::Constitution,
-                        class: ClassType::Monster,
-                    },
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D6)),
                 ],
+                0,
+            ),
+            MonsterType::BeastLevel00 => MonsterDefinition::new_simple(
+                &["Rat", "Lizard", "Pig", "Frog", "Crap"],
+                (-2, -2, -4),
+                Gold::new(5),
+                None,
+                Some(WeaponType::MonsterNone),
+                None,
                 vec![],
+                vec![],
+                vec![],
+                vec![],
+                0,
+            ),
+            MonsterType::BeastLevel01 => MonsterDefinition::new_simple(
+                &["Badger", "Goat", "Weasel"],
+                (-2, 1, -4),
+                Gold::new(10),
+                None,
+                Some(WeaponType::MonsterD4),
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                0,
+            ),
+            MonsterType::Wolf => MonsterDefinition::new_simple(
+                &["Wolf"],
+                (-1, 0, -1),
+                Gold::new(5),
+                None,
+                Some(WeaponType::MonsterNone),
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![],
+                0,
+            ),
+            MonsterType::DireWolf => MonsterDefinition::new_simple(
+                &["Dire wolf"],
+                (0, 0, 0),
+                Gold::new(5),
+                None,
+                None,
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![(ItemType::PotionOfHealing, Some(Dice::D4))],
+                1,
+            ),
+            MonsterType::GiantSpider => MonsterDefinition::new_simple(
+                &["Giant Spider"],
+                (2, 3, 1),
+                Gold::new(20),
+                None,
+                Some(WeaponType::MonsterD8P2),
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![(ItemType::PotionOfHealing, Some(Dice::D4))],
+                2,
+            ),
+            MonsterType::GiantToad => MonsterDefinition::new_simple(
+                &["Giant Spider"],
+                (2, 1, 1),
+                Gold::new(20),
+                None,
+                Some(WeaponType::MonsterD10P2),
+                None,
+                vec![],
+                vec![],
+                vec![],
+                vec![(ItemType::PotionOfHealing, Some(Dice::D4))],
+                2,
             ),
         }
     }
@@ -174,7 +222,6 @@ pub struct MonsterDefinition {
     pub name: String,
     pub base_ability_scores: AbilityScores,
     pub gold: Gold,
-    pub experience: Experience,
     pub equipped_weapon: Option<WeaponType>,
     pub equipped_offhand: Option<WeaponType>,
     pub equipped_armor: Option<ArmorType>,
@@ -188,6 +235,61 @@ pub struct MonsterDefinition {
 }
 
 impl MonsterDefinition {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_simple(
+        name: &[&str],
+        bonus: (i16, i16, i16),
+        gold: Gold,
+        equipped_weapon: Option<WeaponType>,
+        equipped_offhand: Option<WeaponType>,
+        equipped_armor: Option<ArmorType>,
+        weapon_inventory: Vec<(WeaponType, Option<Dice>)>,
+        armor_inventory: Vec<(ArmorType, Option<Dice>)>,
+        jewelry_inventory: Vec<(JewelryType, Option<Dice>)>,
+        item_inventory: Vec<(ItemType, Option<Dice>)>,
+        level: u16,
+    ) -> Self {
+        let weapon_inventory = roll_items(weapon_inventory);
+        let armor_inventory = roll_items(armor_inventory);
+        let jewelry_inventory = roll_items(jewelry_inventory);
+        let item_inventory = roll_items(item_inventory);
+
+        let str = 10 + 2 * bonus.0;
+        let dex = 10 + 2 * bonus.1;
+        let con = 10 + 2 * bonus.2 - level as i16;
+
+        let base_ability_scores = AbilityScores {
+            strength: Strength::new(str),
+            dexterity: Dexterity::new(dex),
+            constitution: Constitution::new(con),
+        };
+
+        let levels = (0..level)
+            .map(|_| LevelUpChoice {
+                ability_increment: AbilityType::Constitution,
+                class: ClassType::Monster,
+            })
+            .collect();
+
+        let name = name.choose(&mut rand::rng()).unwrap();
+
+        Self {
+            name: name.to_string(),
+            base_ability_scores,
+            gold,
+            equipped_weapon,
+            equipped_offhand,
+            equipped_armor,
+            equipped_jewelry: vec![],
+            weapon_inventory,
+            armor_inventory,
+            jewelry_inventory,
+            item_inventory,
+            levels,
+            active_conditions: vec![],
+        }
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         name: &str,
@@ -204,67 +306,15 @@ impl MonsterDefinition {
         levels: Vec<LevelUpChoice>,
         active_conditions: Vec<ActiveCondition>,
     ) -> Self {
-        let weapon_inventory: Vec<_> = weapon_inventory
-            .into_iter()
-            .flat_map(|item| match item.1 {
-                Some(dice) => {
-                    if roll_success(&dice) {
-                        Some(item.0)
-                    } else {
-                        None
-                    }
-                }
-                None => Some(item.0),
-            })
-            .collect();
-
-        let armor_inventory: Vec<_> = armor_inventory
-            .into_iter()
-            .flat_map(|item| match item.1 {
-                Some(dice) => {
-                    if roll_success(&dice) {
-                        Some(item.0)
-                    } else {
-                        None
-                    }
-                }
-                None => Some(item.0),
-            })
-            .collect();
-
-        let jewelry_inventory: Vec<_> = jewelry_inventory
-            .into_iter()
-            .flat_map(|item| match item.1 {
-                Some(dice) => {
-                    if roll_success(&dice) {
-                        Some(item.0)
-                    } else {
-                        None
-                    }
-                }
-                None => Some(item.0),
-            })
-            .collect();
-
-        let item_inventory: Vec<_> = item_inventory
-            .into_iter()
-            .flat_map(|item| match item.1 {
-                Some(dice) => {
-                    if roll_success(&dice) {
-                        Some(item.0)
-                    } else {
-                        None
-                    }
-                }
-                None => Some(item.0),
-            })
-            .collect();
+        let weapon_inventory = roll_items(weapon_inventory);
+        let armor_inventory = roll_items(armor_inventory);
+        let jewelry_inventory = roll_items(jewelry_inventory);
+        let item_inventory = roll_items(item_inventory);
 
         Self {
             name: name.to_string(),
             base_ability_scores,
             gold,
-            experience: Experience::new(0),
             equipped_weapon,
             equipped_offhand,
             equipped_armor,
@@ -277,4 +327,20 @@ impl MonsterDefinition {
             active_conditions,
         }
     }
+}
+
+fn roll_items<T>(items: Vec<(T, Option<Dice>)>) -> Vec<T> {
+    items
+        .into_iter()
+        .flat_map(|item| match item.1 {
+            Some(dice) => {
+                if roll_success(&dice) {
+                    Some(item.0)
+                } else {
+                    None
+                }
+            }
+            None => Some(item.0),
+        })
+        .collect()
 }

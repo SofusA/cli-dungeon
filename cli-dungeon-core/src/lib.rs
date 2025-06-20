@@ -28,7 +28,9 @@ pub async fn play(
 ) -> Result<PlayOutcome, GameError> {
     let character = get_character(pool, character_info).await?;
 
-    if character.quest_points == QuestPoint::new(100) {
+    if matches!(character.status, Status::Questing)
+        && character.quest_points == QuestPoint::new(300)
+    {
         let Loot {
             weapons,
             armor,
@@ -61,9 +63,7 @@ pub async fn play(
         return Ok(PlayOutcome::CompletedQuest(loot));
     }
 
-    if let Status::Questing = character.status
-        && (roll(&Dice::D20) == 4 || force)
-    {
+    if matches!(character.status, Status::Questing) && (roll(&Dice::D20) == 4 || force) {
         let outcome = new_encounter(pool, character_info.id).await;
         return Ok(PlayOutcome::NewFight(outcome));
     }

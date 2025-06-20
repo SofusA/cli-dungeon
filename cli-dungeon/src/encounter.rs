@@ -218,6 +218,9 @@ impl EncounterState {
 
 fn default_encounter_script<'a>() -> &'a str {
     r#"
+// print(state.available_actions); // List available actions
+// print(state.available_bonus_actions); // List available bonus actions
+
 let enemies = state.enemies;
 
 // Sort enemies by health
@@ -285,7 +288,7 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
 
     loop {
         let Ok(encounter) = cli_dungeon_core::get_encounter(pool, character_info).await else {
-            return;
+            break;
         };
 
         let result = run_script_get_action(character_info.id, encounter, &ast, &engine);

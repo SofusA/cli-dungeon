@@ -5,7 +5,11 @@ use crate::types::{AbilityScoreBonus, ArmorPoints, Gold, Strength};
 )]
 pub enum ArmorType {
     Leather,
-    Chainmail,
+    StudedLeather,
+    ChainShirt,
+    BreastPlate,
+    HalfPlate,
+    ChainMail,
     Splint,
 }
 
@@ -33,7 +37,7 @@ impl ArmorType {
         let string = string.to_lowercase();
         match string.as_str() {
             "leather" => Some(Self::Leather),
-            "chainmail" => Some(Self::Chainmail),
+            "chainmail" => Some(Self::BreastPlate),
             "splint" => Some(Self::Splint),
             _ => None,
         }
@@ -48,10 +52,38 @@ impl ArmorType {
                 max_dexterity_bonus: AbilityScoreBonus::new(6),
                 strength_requirement: Strength::new(8),
             },
-            ArmorType::Chainmail => Armor {
+            ArmorType::StudedLeather => Armor {
                 name: self.to_name(),
                 cost: Gold::new(150),
+                armor_bonus: ArmorPoints::new(2),
+                max_dexterity_bonus: AbilityScoreBonus::new(6),
+                strength_requirement: Strength::new(8),
+            },
+            ArmorType::ChainShirt => Armor {
+                name: self.to_name(),
+                cost: Gold::new(100),
                 armor_bonus: ArmorPoints::new(3),
+                max_dexterity_bonus: AbilityScoreBonus::new(2),
+                strength_requirement: Strength::new(8),
+            },
+            ArmorType::BreastPlate => Armor {
+                name: self.to_name(),
+                cost: Gold::new(150),
+                armor_bonus: ArmorPoints::new(4),
+                max_dexterity_bonus: AbilityScoreBonus::new(2),
+                strength_requirement: Strength::new(10),
+            },
+            ArmorType::HalfPlate => Armor {
+                name: self.to_name(),
+                cost: Gold::new(250),
+                armor_bonus: ArmorPoints::new(5),
+                max_dexterity_bonus: AbilityScoreBonus::new(2),
+                strength_requirement: Strength::new(12),
+            },
+            ArmorType::ChainMail => Armor {
+                name: self.to_name(),
+                cost: Gold::new(150),
+                armor_bonus: ArmorPoints::new(6),
                 max_dexterity_bonus: AbilityScoreBonus::new(2),
                 strength_requirement: Strength::new(14),
             },

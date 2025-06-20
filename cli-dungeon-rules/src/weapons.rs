@@ -28,6 +28,20 @@ pub enum WeaponType {
     Shortsword,
     Longsword,
     Shield,
+    MonsterNone,
+    MonsterD4,
+    MonsterD4P1,
+    MonsterD4P2,
+    MonsterD6,
+    MonsterD6P1,
+    MonsterD6P2,
+    MonsterD8,
+    MonsterD8P1,
+    MonsterD8P2,
+    MonsterD8P3,
+    MonsterD10,
+    MonsterD10P1,
+    MonsterD10P2,
 }
 
 impl WeaponType {
@@ -56,10 +70,10 @@ impl WeaponType {
         match self {
             WeaponType::Dagger => Weapon {
                 name: self.to_name(),
-                cost: Gold::new(5),
+                cost: Gold::new(20),
                 attack_stats: WeaponAttackStats {
-                    primary_ability: AbilityScaling::Dexterity,
-                    hit_bonus: AbilityScoreBonus::new(0),
+                    primary_ability: AbilityScaling::Versatile,
+                    hit_bonus: AbilityScoreBonus::new(1),
                     attack_dices: vec![Dice::D4],
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
@@ -68,7 +82,7 @@ impl WeaponType {
             },
             WeaponType::Shortsword => Weapon {
                 name: self.to_name(),
-                cost: Gold::new(50),
+                cost: Gold::new(100),
                 attack_stats: WeaponAttackStats {
                     primary_ability: AbilityScaling::Versatile,
                     hit_bonus: AbilityScoreBonus::new(0),
@@ -80,7 +94,7 @@ impl WeaponType {
             },
             WeaponType::Longsword => Weapon {
                 name: self.to_name(),
-                cost: Gold::new(50),
+                cost: Gold::new(100),
                 attack_stats: WeaponAttackStats {
                     primary_ability: AbilityScaling::Strength,
                     hit_bonus: AbilityScoreBonus::new(0),
@@ -101,6 +115,174 @@ impl WeaponType {
                 },
                 allow_offhand: true,
                 armor_bonus: ArmorPoints::new(3),
+            },
+            WeaponType::MonsterNone => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![],
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD4 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D4],
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD4P1 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D4],
+                    attack_bonus: AbilityScoreBonus::new(1),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD4P2 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D4],
+                    attack_bonus: AbilityScoreBonus::new(2),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD6 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D6],
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD6P1 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D6],
+                    attack_bonus: AbilityScoreBonus::new(1),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD6P2 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D6],
+                    attack_bonus: AbilityScoreBonus::new(2),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD8 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D8],
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD8P1 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D8],
+                    attack_bonus: AbilityScoreBonus::new(1),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD8P2 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D8],
+                    attack_bonus: AbilityScoreBonus::new(2),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD8P3 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D8],
+                    attack_bonus: AbilityScoreBonus::new(3),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD10 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D10],
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD10P1 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D10],
+                    attack_bonus: AbilityScoreBonus::new(1),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
+            },
+            WeaponType::MonsterD10P2 => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(0),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D10],
+                    attack_bonus: AbilityScoreBonus::new(2),
+                },
+                allow_offhand: true,
+                armor_bonus: ArmorPoints::new(0),
             },
         }
     }
