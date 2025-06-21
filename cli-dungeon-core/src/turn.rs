@@ -4,7 +4,7 @@ use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
     AttackStats, Encounter, Hit, Status,
     armor::ArmorType,
-    character::{Character, CharacterWeapon, experience_gain},
+    character::{Character, CharacterType, CharacterWeapon, experience_gain},
     items::{ItemAction, ItemType},
     jewelry::JewelryType,
     spells::SpellAction,
@@ -53,7 +53,8 @@ pub(crate) async fn monster_take_turn(
     pool: &Pool,
     monster: &Character,
     encounter: &Encounter,
-) -> Vec<TurnOutcome> {
+    outcome: &mut Vec<TurnOutcome>,
+) {
     let target = encounter
         .rotation
         .iter()
@@ -72,7 +73,7 @@ pub(crate) async fn monster_take_turn(
                 .flatten()
         });
 
-    character_take_turn(pool, monster, encounter, action, bonus_action).await
+    character_take_turn(pool, monster, encounter, outcome, action, bonus_action).await
 }
 
 async fn handle_attack(
@@ -147,19 +148,19 @@ async fn character_take_turn(
     pool: &Pool,
     active_character: &Character,
     encounter: &Encounter,
+    outcome: &mut Vec<TurnOutcome>,
     action: Option<Action>,
     bonus_action: Option<BonusAction>,
-) -> Vec<TurnOutcome> {
-    let mut outcome_list = vec![];
+) {
     let mut new_dead_list = encounter.dead_characters.clone();
     let mut new_rotation = encounter.rotation.clone();
 
-    outcome_list.push(TurnOutcome::StartTurn(active_character.name.clone()));
+    outcome.push(TurnOutcome::StartTurn(active_character.name.clone()));
 
     if let Some(action) = action {
         match action {
             Action::Attack(target) => {
-                let mut outcome = handle_attack(
+                let mut new_outcome = handle_attack(
                     pool,
                     active_character,
                     &active_character.attack_stats(CharacterWeapon::Mainhand),
@@ -168,7 +169,7 @@ async fn character_take_turn(
                     &mut new_dead_list,
                 )
                 .await;
-                outcome_list.append(&mut outcome);
+                outcome.append(&mut new_outcome);
             }
             Action::Item(item) => match item {
                 cli_dungeon_rules::items::ItemAction::Spell(spell_type) => match spell_type {
@@ -179,7 +180,7 @@ async fn character_take_turn(
                             vec![active_condition],
                         )
                         .await;
-                        outcome_list.push(TurnOutcome::ConditionSet((
+                        outcome.push(TurnOutcome::ConditionSet((
                             active_condition.condition_type.to_condition().name,
                             active_character.name.clone(),
                         )));
@@ -196,7 +197,7 @@ async fn character_take_turn(
                         new_health,
                     )
                     .await;
-                    outcome_list.push(TurnOutcome::Healed((
+                    outcome.push(TurnOutcome::Healed((
                         active_character.name.clone(),
                         health_roll,
                     )));
@@ -219,14 +220,14 @@ async fn character_take_turn(
                                 vec![active_condition],
                             )
                             .await;
-                            outcome_list.push(TurnOutcome::ConditionSet((
+                            outcome.push(TurnOutcome::ConditionSet((
                                 active_condition.condition_type.to_condition().name,
                                 target.name.clone(),
                             )));
                         }
                         SpellAction::Projectile(attack_stats) => {
                             let attack = active_character.spell_stats(attack_stats);
-                            let mut outcome = handle_attack(
+                            let mut new_outcome = handle_attack(
                                 pool,
                                 active_character,
                                 &attack,
@@ -235,7 +236,7 @@ async fn character_take_turn(
                                 &mut new_dead_list,
                             )
                             .await;
-                            outcome_list.append(&mut outcome);
+                            outcome.append(&mut new_outcome);
                         }
                     },
                     cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
@@ -243,12 +244,12 @@ async fn character_take_turn(
                         let new_health = target.current_health + health_roll;
                         cli_dungeon_database::set_character_health(pool, &target.id, new_health)
                             .await;
-                        outcome_list.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
+                        outcome.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
                     }
                     cli_dungeon_rules::items::ItemAction::Projectile(projectile_attack_stats) => {
                         let attack = active_character
                             .attack_stats(CharacterWeapon::Thrown(projectile_attack_stats));
-                        let mut outcome = handle_attack(
+                        let mut new_outcome = handle_attack(
                             pool,
                             active_character,
                             &attack,
@@ -257,7 +258,7 @@ async fn character_take_turn(
                             &mut new_dead_list,
                         )
                         .await;
-                        outcome_list.append(&mut outcome);
+                        outcome.append(&mut new_outcome);
                     }
                 }
             }
@@ -267,7 +268,7 @@ async fn character_take_turn(
     if let Some(action) = bonus_action {
         match action {
             BonusAction::OffhandAttack(target) => {
-                let mut outcome = handle_attack(
+                let mut new_outcome = handle_attack(
                     pool,
                     active_character,
                     &active_character.attack_stats(CharacterWeapon::Offhand),
@@ -276,7 +277,7 @@ async fn character_take_turn(
                     &mut new_dead_list,
                 )
                 .await;
-                outcome_list.append(&mut outcome);
+                outcome.append(&mut new_outcome);
             }
             BonusAction::Item(item) => match item {
                 cli_dungeon_rules::items::ItemAction::Spell(spell_type) => match spell_type {
@@ -287,7 +288,7 @@ async fn character_take_turn(
                             vec![active_condition],
                         )
                         .await;
-                        outcome_list.push(TurnOutcome::ConditionSet((
+                        outcome.push(TurnOutcome::ConditionSet((
                             active_condition.condition_type.to_condition().name,
                             active_character.name.clone(),
                         )));
@@ -303,7 +304,7 @@ async fn character_take_turn(
                         new_health,
                     )
                     .await;
-                    outcome_list.push(TurnOutcome::Healed((
+                    outcome.push(TurnOutcome::Healed((
                         active_character.name.clone(),
                         health_roll,
                     )));
@@ -326,14 +327,14 @@ async fn character_take_turn(
                                 vec![active_condition],
                             )
                             .await;
-                            outcome_list.push(TurnOutcome::ConditionSet((
+                            outcome.push(TurnOutcome::ConditionSet((
                                 active_condition.condition_type.to_condition().name,
                                 target.name.clone(),
                             )));
                         }
                         SpellAction::Projectile(attack_stats) => {
                             let attack = active_character.spell_stats(attack_stats);
-                            let mut outcome = handle_attack(
+                            let mut new_outcome = handle_attack(
                                 pool,
                                 active_character,
                                 &attack,
@@ -342,7 +343,7 @@ async fn character_take_turn(
                                 &mut new_dead_list,
                             )
                             .await;
-                            outcome_list.append(&mut outcome);
+                            outcome.append(&mut new_outcome);
                         }
                     },
                     cli_dungeon_rules::items::ItemAction::Healing(health_stats) => {
@@ -350,12 +351,12 @@ async fn character_take_turn(
                         let new_health = target.current_health + health_roll;
                         cli_dungeon_database::set_character_health(pool, &target.id, new_health)
                             .await;
-                        outcome_list.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
+                        outcome.push(TurnOutcome::Healed((target.name.clone(), health_roll)));
                     }
                     cli_dungeon_rules::items::ItemAction::Projectile(projectile_attack_stats) => {
                         let attack = active_character
                             .attack_stats(CharacterWeapon::Thrown(projectile_attack_stats));
-                        let mut outcome = handle_attack(
+                        let mut new_outcome = handle_attack(
                             pool,
                             active_character,
                             &attack,
@@ -364,7 +365,7 @@ async fn character_take_turn(
                             &mut new_dead_list,
                         )
                         .await;
-                        outcome_list.append(&mut outcome);
+                        outcome.append(&mut new_outcome);
                     }
                 }
             }
@@ -447,8 +448,6 @@ async fn character_take_turn(
     .await;
 
     advance_turn(pool, active_character).await;
-
-    outcome_list
 }
 
 pub async fn take_turn(
@@ -477,31 +476,42 @@ pub async fn take_turn(
         return Err(GameError::NotPlayerTurn);
     }
 
-    outcome.append(
-        &mut character_take_turn(pool, &active_character, &encounter, action, bonus_action).await,
-    );
+    character_take_turn(
+        pool,
+        &active_character,
+        &encounter,
+        &mut outcome,
+        action,
+        bonus_action,
+    )
+    .await;
 
-    loop {
-        let encounter = cli_dungeon_database::get_encounter(pool, &encounter_id)
-            .await
-            .unwrap();
-
-        match encounter.rotation.first() {
-            Some(turn) => match &turn.character_type {
-                cli_dungeon_rules::character::CharacterType::Player => break,
-                cli_dungeon_rules::character::CharacterType::Monster(_) => {
-                    if encounter.rotation.iter().map(|x| x.party).len() > 1 {
-                        outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
-                    } else {
-                        break;
-                    };
-                }
-            },
-            None => break,
-        }
-    }
+    monsters_take_turn(pool, encounter.id, &mut outcome).await;
 
     Ok(outcome)
+}
+
+pub async fn monsters_take_turn(pool: &Pool, encounter_id: i64, outcome: &mut Vec<TurnOutcome>) {
+    let encounter = cli_dungeon_database::get_encounter(pool, &encounter_id)
+        .await
+        .unwrap();
+
+    let starting_monsters: Vec<_> = encounter
+        .rotation
+        .iter()
+        .take_while(|x| !matches!(x.character_type, CharacterType::Player))
+        .collect();
+
+    for monster in starting_monsters {
+        let encounter = cli_dungeon_database::get_encounter(pool, &encounter.id)
+            .await
+            .unwrap();
+        if encounter.rotation.iter().map(|x| x.party).len() > 1 {
+            monster_take_turn(pool, monster, &encounter, outcome).await;
+        } else {
+            continue;
+        };
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -575,7 +585,8 @@ mod tests {
         let character_turn = encounter.rotation.first().unwrap();
         assert_eq!(character_turn.id, monster_1.id);
 
-        character_take_turn(&pool, &monster_1, &encounter, None, None).await;
+        let mut outcome = vec![];
+        character_take_turn(&pool, &monster_1, &encounter, &mut outcome, None, None).await;
 
         let encounter = cli_dungeon_database::get_encounter(&pool, &encounter.id)
             .await
@@ -613,10 +624,12 @@ mod tests {
             .await
             .unwrap();
 
+        let mut outcome = vec![];
         character_take_turn(
             &pool,
             &monster_1,
             &encounter,
+            &mut outcome,
             None,
             Some(crate::turn::BonusAction::Item(
                 cli_dungeon_rules::items::ItemAction::Healing(HealingStats {
@@ -663,10 +676,12 @@ mod tests {
             .await
             .unwrap();
 
+        let mut outcome = vec![];
         character_take_turn(
             &pool,
             &monster_1,
             &encounter,
+            &mut outcome,
             None,
             Some(crate::turn::BonusAction::ItemWithTarget(
                 cli_dungeon_rules::items::ItemAction::Spell(SpellType::Weaken.spell_action()),
@@ -768,10 +783,12 @@ mod tests {
                 let first = encounter.rotation.first().unwrap();
                 let last = encounter.rotation.last().unwrap();
 
+                let mut outcome = vec![];
                 character_take_turn(
                     &pool,
                     first,
                     &encounter,
+                    &mut outcome,
                     Some(Action::Attack(last.id)),
                     Some(BonusAction::OffhandAttack(last.id)),
                 )
@@ -869,10 +886,12 @@ mod tests {
                 let first = encounter.rotation.first().unwrap();
                 let last = encounter.rotation.last().unwrap();
 
+                let mut outcome = vec![];
                 character_take_turn(
                     &pool,
                     first,
                     &encounter,
+                    &mut outcome,
                     Some(Action::Attack(last.id)),
                     Some(BonusAction::OffhandAttack(last.id)),
                 )

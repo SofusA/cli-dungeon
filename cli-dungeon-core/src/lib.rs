@@ -1,3 +1,4 @@
+use crate::turn::monsters_take_turn;
 use character::{get_character, validate_player};
 use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
@@ -8,7 +9,7 @@ use cli_dungeon_rules::{
 };
 use errors::GameError;
 use futures::future::join_all;
-use turn::{TurnOutcome, advance_turn, monster_take_turn};
+use turn::{TurnOutcome, advance_turn};
 
 pub mod character;
 pub mod errors;
@@ -144,21 +145,7 @@ async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
 
     let mut outcome: Vec<TurnOutcome> = vec![];
 
-    loop {
-        let encounter = cli_dungeon_database::get_encounter(pool, &encounter_id)
-            .await
-            .unwrap();
-
-        match encounter.rotation.first() {
-            Some(turn) => match &turn.character_type {
-                cli_dungeon_rules::character::CharacterType::Player => break,
-                cli_dungeon_rules::character::CharacterType::Monster(_) => {
-                    outcome.append(&mut monster_take_turn(pool, turn, &encounter).await);
-                }
-            },
-            None => break,
-        }
-    }
+    monsters_take_turn(pool, encounter_id, &mut outcome).await;
 
     outcome
 }
