@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            update active_character\n            set id=$1, secret = $2\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7e3e47b30ccb82ed5f3882f5742392acbb0f14f551dfeb6fe034e5dcaedd4d36"
+}

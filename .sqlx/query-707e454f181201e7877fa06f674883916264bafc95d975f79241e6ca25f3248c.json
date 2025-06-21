@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set current_health = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "707e454f181201e7877fa06f674883916264bafc95d975f79241e6ca25f3248c"
+}

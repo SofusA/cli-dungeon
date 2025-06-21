@@ -1,0 +1,152 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            select\n            rowid,\n            name,\n            secret,\n            character_type as \"character_type: Json<CharacterType>\",\n            gold,\n            experience,\n            base_ability_scores as \"base_ability_scores: Json<AbilityScores>\",\n            current_health,\n            equipped_weapon as \"equipped_weapon: Json<WeaponType>\",\n            equipped_offhand as \"equipped_offhand: Json<WeaponType>\",\n            equipped_armor as \"equipped_armor: Json<ArmorType>\",\n            equipped_jewelry as \"equipped_jewelry: Json<Vec<JewelryType>>\",\n            weapon_inventory as \"weapon_inventory: Json<Vec<WeaponType>>\",\n            armor_inventory as \"armor_inventory: Json<Vec<ArmorType>>\",\n            jewelry_inventory as \"jewelry_inventory: Json<Vec<JewelryType>>\",\n            item_inventory as \"item_inventory: Json<Vec<ItemType>>\",\n            level_up_choices as \"level_up_choices: Json<Vec<LevelUpChoice>>\",\n            active_conditions as \"active_conditions: Json<Vec<ActiveCondition>>\",\n            short_rests,\n            quest_points,\n            encounter_id,\n            party_id,\n            status as \"status: Json<DbStatus>\"\n            from characters where rowid = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "rowid",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "secret",
+        "ordinal": 2,
+        "type_info": "Integer"
+      },
+      {
+        "name": "character_type: Json<CharacterType>",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "gold",
+        "ordinal": 4,
+        "type_info": "Integer"
+      },
+      {
+        "name": "experience",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "base_ability_scores: Json<AbilityScores>",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "current_health",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "equipped_weapon: Json<WeaponType>",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "equipped_offhand: Json<WeaponType>",
+        "ordinal": 9,
+        "type_info": "Text"
+      },
+      {
+        "name": "equipped_armor: Json<ArmorType>",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "equipped_jewelry: Json<Vec<JewelryType>>",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "weapon_inventory: Json<Vec<WeaponType>>",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "armor_inventory: Json<Vec<ArmorType>>",
+        "ordinal": 13,
+        "type_info": "Text"
+      },
+      {
+        "name": "jewelry_inventory: Json<Vec<JewelryType>>",
+        "ordinal": 14,
+        "type_info": "Text"
+      },
+      {
+        "name": "item_inventory: Json<Vec<ItemType>>",
+        "ordinal": 15,
+        "type_info": "Text"
+      },
+      {
+        "name": "level_up_choices: Json<Vec<LevelUpChoice>>",
+        "ordinal": 16,
+        "type_info": "Text"
+      },
+      {
+        "name": "active_conditions: Json<Vec<ActiveCondition>>",
+        "ordinal": 17,
+        "type_info": "Text"
+      },
+      {
+        "name": "short_rests",
+        "ordinal": 18,
+        "type_info": "Integer"
+      },
+      {
+        "name": "quest_points",
+        "ordinal": 19,
+        "type_info": "Integer"
+      },
+      {
+        "name": "encounter_id",
+        "ordinal": 20,
+        "type_info": "Integer"
+      },
+      {
+        "name": "party_id",
+        "ordinal": 21,
+        "type_info": "Integer"
+      },
+      {
+        "name": "status: Json<DbStatus>",
+        "ordinal": 22,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "9cb8c7dc17bb2216c5053f041c69567b22a98cf3e32efb68c5cc34e68f6d8fec"
+}

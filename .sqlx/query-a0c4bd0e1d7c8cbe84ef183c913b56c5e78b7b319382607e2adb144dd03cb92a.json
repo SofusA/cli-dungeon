@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set experience = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a0c4bd0e1d7c8cbe84ef183c913b56c5e78b7b319382607e2adb144dd03cb92a"
+}

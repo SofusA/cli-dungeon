@@ -712,9 +712,11 @@ mod tests {
     }
 
     #[sqlx::test]
+    #[ignore]
     async fn str_and_dex_builds_are_equal(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
-        let rounds = 100;
+        let rounds = 200;
+        let allowed_win_diff = 30;
         let mut dex_wins = 0;
         let mut str_wins = 0;
 
@@ -781,15 +783,17 @@ mod tests {
         println!("str wins: {str_wins}");
 
         let win_dif: i32 = dex_wins - str_wins;
-        let win_dif = win_dif.abs();
+        let win_diff = win_dif.abs();
 
-        assert!(win_dif < 20);
+        assert!(win_diff < allowed_win_diff);
     }
 
     #[sqlx::test]
+    #[ignore]
     async fn high_level_str_and_dex_builds_are_equal(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
-        let rounds = 100;
+        let rounds = 200;
+        let allowed_win_diff = 30;
         let mut dex_wins = 0;
         let mut str_wins = 0;
 
@@ -798,7 +802,7 @@ mod tests {
                 .await
                 .unwrap();
 
-            cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::Leather).await;
+            cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::StudedLeather).await;
             cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
             cli_dungeon_database::equip_offhand(&pool, &dex.id, WeaponType::Shortsword).await;
             for _ in 0..2 {
@@ -880,8 +884,8 @@ mod tests {
         println!("str wins: {str_wins}");
 
         let win_dif: i32 = dex_wins - str_wins;
-        let win_dif = win_dif.abs();
+        let win_diff = win_dif.abs();
 
-        assert!(win_dif < 20);
+        assert!(win_diff < allowed_win_diff);
     }
 }

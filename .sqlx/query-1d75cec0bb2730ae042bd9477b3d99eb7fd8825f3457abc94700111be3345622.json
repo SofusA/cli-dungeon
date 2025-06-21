@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set active_conditions = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "1d75cec0bb2730ae042bd9477b3d99eb7fd8825f3457abc94700111be3345622"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set equipped_jewelry = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ad65eda76898be7dd098f0f84c76901979930946494e3dfe082b8818669217f8"
+}

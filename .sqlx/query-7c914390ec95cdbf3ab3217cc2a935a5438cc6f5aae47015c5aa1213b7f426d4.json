@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set short_rests = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7c914390ec95cdbf3ab3217cc2a935a5438cc6f5aae47015c5aa1213b7f426d4"
+}

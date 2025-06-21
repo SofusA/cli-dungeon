@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                update party_counter set value = value + 1;\n                select value from party_counter;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "value",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "9b76a34cab24949d20b5f14496f3700187fb3c7dcf98edd238695b4c481fd135"
+}

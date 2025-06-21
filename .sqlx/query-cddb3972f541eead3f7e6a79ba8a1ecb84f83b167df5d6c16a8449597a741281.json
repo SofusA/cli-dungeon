@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set quest_points = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "cddb3972f541eead3f7e6a79ba8a1ecb84f83b167df5d6c16a8449597a741281"
+}

@@ -126,6 +126,7 @@ async fn main() -> Result<()> {
             dexterity,
             constitution,
         } => {
+            encounter::ensure_default_script();
             let character_info = cli_dungeon_core::character::create_character(
                 &pool,
                 name,
@@ -502,7 +503,7 @@ mod tests {
 
         assert_eq!(starting_character.experience_level(), Level::new(0));
 
-        let starting_gold = Gold::new(100);
+        let starting_gold = Gold::new(500);
         cli_dungeon_database::set_character_gold(&pool, &starting_character.id, starting_gold)
             .await;
 

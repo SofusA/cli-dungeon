@@ -267,15 +267,13 @@ fn build_engine() -> Engine {
     engine
 }
 
-pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo) {
+pub fn ensure_default_script() -> std::path::PathBuf {
     let script_path = {
         let mut config = dirs::config_dir().unwrap();
         config.push("cli-dungeon");
         config.push("encounter.rhai");
         config
     };
-
-    let engine = build_engine();
 
     if !script_path.exists() {
         std::fs::create_dir_all(script_path.parent().unwrap()).unwrap();
@@ -284,6 +282,13 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
         write!(file, "{}", default_encounter_script()).unwrap();
     }
 
+    script_path
+}
+
+pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo) {
+    let script_path = ensure_default_script();
+
+    let engine = build_engine();
     let ast = engine.compile_file(script_path).unwrap();
 
     loop {

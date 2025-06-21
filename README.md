@@ -32,10 +32,10 @@ Develop a script to determine the optimal action in your encounters with the evi
 You can download an executable in the Releases page.
 This needs to be put on your `$PATH`.
 
-### From source
+### With cargo
 Dependencies: `cargo`
 ```bash
-cargo install --path ./cli-dungeon
+cargo install --git https://github.com/SofusA/cli-dungeon
 ```
 
 ## Setup

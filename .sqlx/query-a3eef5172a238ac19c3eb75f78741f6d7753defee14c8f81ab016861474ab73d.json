@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set encounter_id = $2 where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a3eef5172a238ac19c3eb75f78741f6d7753defee14c8f81ab016861474ab73d"
+}

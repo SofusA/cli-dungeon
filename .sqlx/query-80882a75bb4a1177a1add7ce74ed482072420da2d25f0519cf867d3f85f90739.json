@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            select\n            rotation as \"rotation: Json<Vec<i64>>\",\n            dead_characters as \"dead_characters: Json<Vec<i64>>\",\n            rowid\n            from encounters where rowid = $1",
+  "describe": {
+    "columns": [
+      {
+        "name": "rotation: Json<Vec<i64>>",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "dead_characters: Json<Vec<i64>>",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "rowid",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "80882a75bb4a1177a1add7ce74ed482072420da2d25f0519cf867d3f85f90739"
+}

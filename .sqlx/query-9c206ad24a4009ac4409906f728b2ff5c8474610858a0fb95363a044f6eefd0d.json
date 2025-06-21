@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "update characters set equipped_weapon = null where rowid = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "9c206ad24a4009ac4409906f728b2ff5c8474610858a0fb95363a044f6eefd0d"
+}
