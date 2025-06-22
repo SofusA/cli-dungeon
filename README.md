@@ -1,9 +1,6 @@
 # cli-dungeon
 Inspired by dice-based table-top RPGs, `cli-dungeon` brings dungeon crawling to your terminal with a twist of automation and scripting.
 
-*Warning!*
-The game is in a very early state. Fully playable, but expect more content in the future!
-
 ```
 It is Sofusa's turn!
 Bandit took 5 damage
@@ -39,10 +36,18 @@ cargo install --git https://github.com/SofusA/cli-dungeon
 ```
 
 ## Setup
-`cli-dungeon` is meant to be set up as part of your cli prompt. `cli-dungeon play` advances your quest for loot.
+There is a change of *something happens* whenever `cli-dungeon play` is run, and your character advancis their quest for loot.
+`cli-dungeon` is meant to be set up as part of your cli prompt, so that everytime you run a command, something might happen. 
+
+A simple setup would be to alias `cd`:
+```bash
+alias cd="cli-dungeon play; cd"
+```
 
 ### Example in `fish`
-This is my personal prompt.
+This is my personal fish prompt.
+`cli-dungeon play` on every prompt in the terminal.
+
 ```fish
 function fish_prompt
     cli-dungeon play
