@@ -22,6 +22,7 @@ pub fn roll(dice: &Dice) -> i16 {
         Dice::D6 => 6,
         Dice::D8 => 8,
         Dice::D10 => 10,
+        Dice::D12 => 12,
         Dice::D20 => 20,
     };
 
@@ -34,6 +35,7 @@ pub fn roll_success(dice: &Dice) -> bool {
         Dice::D6 => 6,
         Dice::D8 => 8,
         Dice::D10 => 10,
+        Dice::D12 => 12,
         Dice::D20 => 20,
     };
 
@@ -48,6 +50,7 @@ pub enum Dice {
     D6,
     D8,
     D10,
+    D12,
     D20,
 }
 

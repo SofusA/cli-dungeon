@@ -1,7 +1,7 @@
 use crate::{
     Dice,
     abilities::AbilityScaling,
-    types::{AbilityScoreBonus, ArmorPoints, Gold},
+    types::{AbilityScoreBonus, ArmorPoints, Gold, Strength},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -18,6 +18,8 @@ pub struct Weapon {
     pub cost: Gold,
     pub attack_stats: WeaponAttackStats,
     pub allow_offhand: bool,
+    pub two_handed: bool,
+    pub strength_requirement: Strength,
     pub armor_bonus: ArmorPoints,
 }
 
@@ -27,7 +29,10 @@ pub struct Weapon {
 pub enum WeaponType {
     Dagger,
     Shortsword,
+    Rapier,
     Longsword,
+    GreatSword,
+    GreatAxe,
     Shield,
     MonsterNone,
     MonsterD4,
@@ -61,7 +66,10 @@ impl WeaponType {
         match string.as_str() {
             "dagger" => Some(Self::Dagger),
             "shortsword" => Some(Self::Shortsword),
+            "rapier" => Some(Self::Rapier),
             "longsword" => Some(Self::Longsword),
+            "greatsword" => Some(Self::GreatSword),
+            "greataxe" => Some(Self::GreatAxe),
             "shield" => Some(Self::Shield),
             _ => None,
         }
@@ -80,7 +88,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::Shortsword => Weapon {
                 name: self.to_name(),
@@ -93,7 +103,24 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
+            },
+            WeaponType::Rapier => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(200),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Dexterity,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D4, Dice::D4],
+                    versatile_attack_dices: None,
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: true,
+                two_handed: false,
+                armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(8),
             },
             WeaponType::Longsword => Weapon {
                 name: self.to_name(),
@@ -106,7 +133,39 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: false,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(12),
+            },
+            WeaponType::GreatSword => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(200),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D6, Dice::D6],
+                    versatile_attack_dices: None,
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: false,
+                two_handed: true,
+                armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(14),
+            },
+            WeaponType::GreatAxe => Weapon {
+                name: self.to_name(),
+                cost: Gold::new(200),
+                attack_stats: WeaponAttackStats {
+                    primary_ability: AbilityScaling::Strength,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D12],
+                    versatile_attack_dices: None,
+                    attack_bonus: AbilityScoreBonus::new(0),
+                },
+                allow_offhand: false,
+                two_handed: true,
+                armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(14),
             },
             WeaponType::Shield => Weapon {
                 name: self.to_name(),
@@ -119,7 +178,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(3),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterNone => Weapon {
                 name: self.to_name(),
@@ -132,7 +193,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD4 => Weapon {
                 name: self.to_name(),
@@ -145,7 +208,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD4P1 => Weapon {
                 name: self.to_name(),
@@ -158,7 +223,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(1),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD4P2 => Weapon {
                 name: self.to_name(),
@@ -171,7 +238,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(2),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD6 => Weapon {
                 name: self.to_name(),
@@ -184,7 +253,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD6P1 => Weapon {
                 name: self.to_name(),
@@ -197,7 +268,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(1),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD6P2 => Weapon {
                 name: self.to_name(),
@@ -210,7 +283,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(2),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD8 => Weapon {
                 name: self.to_name(),
@@ -223,7 +298,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD8P1 => Weapon {
                 name: self.to_name(),
@@ -236,7 +313,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(1),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD8P2 => Weapon {
                 name: self.to_name(),
@@ -249,7 +328,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(2),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD8P3 => Weapon {
                 name: self.to_name(),
@@ -262,7 +343,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(3),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD10 => Weapon {
                 name: self.to_name(),
@@ -275,7 +358,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(0),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD10P1 => Weapon {
                 name: self.to_name(),
@@ -288,7 +373,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(1),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
             WeaponType::MonsterD10P2 => Weapon {
                 name: self.to_name(),
@@ -301,7 +388,9 @@ impl WeaponType {
                     attack_bonus: AbilityScoreBonus::new(2),
                 },
                 allow_offhand: true,
+                two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
+                strength_requirement: Strength::new(0),
             },
         }
     }

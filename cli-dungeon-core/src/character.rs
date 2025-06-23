@@ -147,6 +147,10 @@ pub async fn equip_main_hand(
         return Err(GameError::WeaponNotInInventory);
     };
 
+    if parsed_weapon.to_weapon().two_handed {
+        cli_dungeon_database::unequip_offhand(pool, &character_info.id).await;
+    }
+
     cli_dungeon_database::equip_weapon(pool, &character_info.id, parsed_weapon).await;
 
     Ok(())
@@ -223,7 +227,7 @@ pub async fn equip_offhand(
 
     let weapon_stats = parsed_weapon.to_weapon();
     if !weapon_stats.allow_offhand {
-        return Err(GameError::NotOffHandWeapon);
+        return Err(GameError::TwoHandedWeaponEquipped);
     }
 
     let character = get_character(pool, character_info).await?;
@@ -242,6 +246,13 @@ pub async fn equip_offhand(
     {
         return Err(GameError::WeaponNotInInventory);
     };
+
+    if character
+        .equipped_weapon
+        .is_some_and(|weapon| weapon.to_weapon().two_handed)
+    {
+        return Err(GameError::TwoHandedWeaponEquipped);
+    }
 
     cli_dungeon_database::equip_offhand(pool, &character_info.id, parsed_weapon).await;
 
@@ -296,10 +307,11 @@ mod tests {
     use cli_dungeon_rules::{
         monsters::MonsterType,
         types::{HealthPoints, QuestPoint},
+        weapons::WeaponType,
     };
 
     use crate::{
-        character::{self, create_character, short_rest},
+        character::{self, create_character, equip_main_hand, equip_offhand, short_rest},
         errors::GameError,
         play,
     };
@@ -390,5 +402,46 @@ mod tests {
             .unwrap();
 
         assert_eq!(character.quest_points, QuestPoint::new(2));
+    }
+
+    #[sqlx::test]
+    async fn two_handed_weapon_works(pool: sqlx::Pool<sqlx::Sqlite>) {
+        cli_dungeon_database::init(&pool).await;
+
+        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
+            .await
+            .unwrap();
+        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+
+        cli_dungeon_database::add_weapon_to_inventory(
+            &pool,
+            &character_info.id,
+            WeaponType::Dagger,
+        )
+        .await
+        .unwrap();
+        cli_dungeon_database::add_weapon_to_inventory(
+            &pool,
+            &character_info.id,
+            WeaponType::GreatSword,
+        )
+        .await
+        .unwrap();
+
+        equip_offhand(&pool, &character_info, "dagger".to_string())
+            .await
+            .unwrap();
+        equip_main_hand(&pool, &character_info, "greatsword".to_string())
+            .await
+            .unwrap();
+
+        let character = cli_dungeon_database::get_character(&pool, &character_info.id)
+            .await
+            .unwrap();
+        assert_eq!(character.equipped_offhand, None);
+
+        let err = equip_offhand(&pool, &character_info, "dagger".to_string()).await;
+
+        assert_eq!(err, Err(GameError::TwoHandedWeaponEquipped));
     }
 }

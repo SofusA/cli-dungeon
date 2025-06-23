@@ -292,10 +292,14 @@ impl Character {
         let weapon = match &weapon_type {
             CharacterWeapon::Mainhand => self
                 .equipped_weapon
-                .map(|weapon| weapon.to_weapon().attack_stats),
+                .map(|weapon| weapon.to_weapon())
+                .filter(|weapon| &weapon.strength_requirement < str)
+                .map(|weapon| weapon.attack_stats),
             CharacterWeapon::Offhand => self
                 .equipped_offhand
-                .map(|weapon| weapon.to_weapon().attack_stats),
+                .map(|weapon| weapon.to_weapon())
+                .filter(|weapon| &weapon.strength_requirement < str)
+                .map(|weapon| weapon.attack_stats),
             CharacterWeapon::Thrown(weapon_attack_stats) => Some(weapon_attack_stats).cloned(),
         };
 
@@ -421,7 +425,7 @@ impl Character {
 #[cfg(test)]
 mod tests {
     use crate::{
-        Status,
+        Dice, Status,
         abilities::AbilityScores,
         armor::ArmorType,
         character::{
@@ -713,7 +717,7 @@ mod tests {
             character_type: CharacterType::Player,
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
-                strength: Strength::new(8),
+                strength: Strength::new(14),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
             },
@@ -755,7 +759,7 @@ mod tests {
             character_type: CharacterType::Player,
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
-                strength: Strength::new(8),
+                strength: Strength::new(14),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
             },
@@ -782,6 +786,44 @@ mod tests {
                 .attack_stats(CharacterWeapon::Mainhand)
                 .attack_dice,
             WeaponType::Longsword.to_weapon().attack_stats.attack_dices
+        );
+    }
+
+    #[test]
+    fn correct_attack_dice_when_insufficient_strength() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: Some(WeaponType::Longsword),
+            equipped_offhand: Some(WeaponType::Dagger),
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(
+            character
+                .attack_stats(CharacterWeapon::Mainhand)
+                .attack_dice,
+            vec![Dice::D4]
         );
     }
 }

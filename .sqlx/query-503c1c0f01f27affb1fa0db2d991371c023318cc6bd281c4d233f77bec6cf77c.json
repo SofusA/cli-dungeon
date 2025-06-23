@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            insert into characters (\n            secret,\n            name,\n            character_type,\n            is_player,\n            gold,\n            experience,\n            base_ability_scores,\n            current_health,\n            equipped_weapon,\n            equipped_offhand,\n            equipped_armor,\n            equipped_jewelry,\n            weapon_inventory,\n            armor_inventory,\n            jewelry_inventory,\n            item_inventory,\n            level_up_choices,\n            status,\n            party_id,\n            active_conditions)\n            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 20
+    },
+    "nullable": []
+  },
+  "hash": "503c1c0f01f27affb1fa0db2d991371c023318cc6bd281c4d233f77bec6cf77c"
+}

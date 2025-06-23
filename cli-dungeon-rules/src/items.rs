@@ -75,8 +75,8 @@ impl ItemType {
                 action: ActionType::Action(ItemAction::Projectile(WeaponAttackStats {
                     primary_ability: AbilityScaling::Strength,
                     hit_bonus: AbilityScoreBonus::new(0),
-                    versatile_attack_dices: None,
                     attack_dices: vec![Dice::D4],
+                    versatile_attack_dices: None,
                     attack_bonus: AbilityScoreBonus::new(0),
                 })),
             },

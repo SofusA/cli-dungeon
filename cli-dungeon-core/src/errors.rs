@@ -21,6 +21,9 @@ pub enum GameError {
     #[error("Weapon cannot be wielded in offhand")]
     NotOffHandWeapon,
 
+    #[error("Two-handed weapon equipped in main hand. Unequip that first")]
+    TwoHandedWeaponEquipped,
+
     #[error("Your character is not strong enough")]
     InsufficientStrength,
 
