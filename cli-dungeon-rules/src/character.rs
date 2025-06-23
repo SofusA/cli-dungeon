@@ -325,8 +325,14 @@ impl Character {
             CharacterWeapon::Thrown(_) => str.ability_score_bonus(),
         };
 
+        let attack_dice = if self.equipped_offhand.is_none() {
+            weapon.versatile_attack_dices.unwrap_or(weapon.attack_dices)
+        } else {
+            weapon.attack_dices
+        };
+
         AttackStats {
-            attack_dice: weapon.attack_dices,
+            attack_dice,
             attack_bonus: ability_bonus + weapon.attack_bonus,
             hit_bonus: ability_bonus,
         }
@@ -420,7 +426,7 @@ mod tests {
         armor::ArmorType,
         character::{
             AvailableAction, AvailableActionDefinition, AvailableBonusActionDefinition, Character,
-            CharacterType,
+            CharacterType, CharacterWeapon,
         },
         items::ItemType,
         spells::SpellType,
@@ -697,5 +703,85 @@ mod tests {
         };
 
         assert_eq!(character.armor_points(), ArmorPoints::new(11));
+    }
+
+    #[test]
+    fn correct_attack_dice_with_versatile_weapon() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: Some(WeaponType::Longsword),
+            equipped_offhand: None,
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(
+            character
+                .attack_stats(CharacterWeapon::Mainhand)
+                .attack_dice,
+            WeaponType::Longsword
+                .to_weapon()
+                .attack_stats
+                .versatile_attack_dices
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn correct_attack_dice_with_versatile_weapon_with_equipped() {
+        let character = Character {
+            id: 1,
+            name: "Testington".to_string(),
+            character_type: CharacterType::Player,
+            current_health: HealthPoints::new(10),
+            base_ability_scores: AbilityScores {
+                strength: Strength::new(8),
+                dexterity: Dexterity::new(12),
+                constitution: Constitution::new(8),
+            },
+            gold: Gold::new(0),
+            experience: Experience::new(0),
+            equipped_weapon: Some(WeaponType::Longsword),
+            equipped_offhand: Some(WeaponType::Dagger),
+            equipped_armor: None,
+            equipped_jewelry: vec![],
+            weapon_inventory: vec![],
+            armor_inventory: vec![],
+            jewelry_inventory: vec![],
+            item_inventory: vec![],
+            level_up_choices: vec![],
+            status: Status::Questing,
+            party: 1,
+            quest_points: QuestPoint::new(0),
+            short_rests_available: 2,
+            active_conditions: vec![],
+        };
+
+        assert_eq!(
+            character
+                .attack_stats(CharacterWeapon::Mainhand)
+                .attack_dice,
+            WeaponType::Longsword.to_weapon().attack_stats.attack_dices
+        );
     }
 }
