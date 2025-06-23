@@ -15,6 +15,9 @@ pub enum GameError {
     #[error("Ability scores must sum to 10")]
     AbilitySumError,
 
+    #[error("Ability scores must be positive numbers")]
+    AbilityNegativeError,
+
     #[error("Weapon cannot be wielded in offhand")]
     NotOffHandWeapon,
 

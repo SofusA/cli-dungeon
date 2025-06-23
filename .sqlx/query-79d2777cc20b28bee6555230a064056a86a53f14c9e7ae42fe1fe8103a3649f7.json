@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "\n                update party_counter set value = value + 1;\n                select value from party_counter;\n            ",
+  "query": "\n            update party_counter set value = value + 1;\n            select value from party_counter;\n        ",
   "describe": {
     "columns": [
       {
@@ -16,5 +16,5 @@
       true
     ]
   },
-  "hash": "9b76a34cab24949d20b5f14496f3700187fb3c7dcf98edd238695b4c481fd135"
+  "hash": "79d2777cc20b28bee6555230a064056a86a53f14c9e7ae42fe1fe8103a3649f7"
 }

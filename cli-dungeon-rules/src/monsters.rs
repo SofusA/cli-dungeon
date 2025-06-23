@@ -1,4 +1,7 @@
-use rand::seq::IndexedRandom;
+use rand::{
+    rngs::ThreadRng,
+    seq::{IndexedRandom, IteratorRandom},
+};
 
 use crate::{
     Dice,
@@ -32,13 +35,29 @@ fn monster_catalogue() -> Vec<Vec<Vec<MonsterType>>> {
             vec![MonsterType::BeastLevel01],
             vec![MonsterType::BanditLevel0],
         ],
-        vec![vec![MonsterType::Wolf]],
+        vec![vec![MonsterType::Wolf], vec![MonsterType::BanditLevel1]],
         vec![
             vec![MonsterType::Wolf, MonsterType::DireWolf],
             vec![MonsterType::Wolf, MonsterType::Wolf],
             vec![MonsterType::GiantSpider],
             vec![MonsterType::GiantToad],
+            vec![MonsterType::BanditLevel2Str],
+            vec![MonsterType::BanditLevel2Dex],
+            vec![MonsterType::BanditLevel1, MonsterType::BanditLevel1],
         ],
+        vec![
+            vec![MonsterType::BanditLevel2Str, MonsterType::BanditLevel2Dex],
+            vec![MonsterType::BanditLevel3Str],
+            vec![MonsterType::BanditLevel3Dex],
+        ],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
+        vec![],
     ]
 }
 
@@ -51,6 +70,11 @@ pub enum MonsterType {
     BeastLevel00,
     BeastLevel01,
     BanditLevel0,
+    BanditLevel1,
+    BanditLevel2Dex,
+    BanditLevel2Str,
+    BanditLevel3Dex,
+    BanditLevel3Str,
     Wolf,
     DireWolf,
     GiantSpider,
@@ -124,9 +148,9 @@ impl MonsterType {
                 &["Bandit"],
                 (0, 0, 0),
                 Gold::new(10),
-                None,
-                Some(WeaponType::Dagger),
-                Some(ArmorType::Leather),
+                vec![Some(WeaponType::Dagger)],
+                vec![None],
+                vec![Some(ArmorType::Leather)],
                 vec![(WeaponType::Dagger, Some(Dice::D4))],
                 vec![(ArmorType::Leather, Some(Dice::D4))],
                 vec![],
@@ -136,13 +160,145 @@ impl MonsterType {
                 ],
                 0,
             ),
+            MonsterType::BanditLevel1 => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (2, 2, 2),
+                Gold::new(10),
+                vec![Some(WeaponType::Dagger), Some(WeaponType::Shortsword)],
+                vec![Some(WeaponType::Dagger), Some(WeaponType::Shield), None],
+                vec![Some(ArmorType::Leather), Some(ArmorType::ChainShirt)],
+                vec![
+                    (WeaponType::Dagger, Some(Dice::D4)),
+                    (WeaponType::Shortsword, Some(Dice::D8)),
+                ],
+                vec![
+                    (ArmorType::Leather, Some(Dice::D4)),
+                    (ArmorType::ChainShirt, Some(Dice::D8)),
+                ],
+                vec![],
+                vec![
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                ],
+                1,
+            ),
+            MonsterType::BanditLevel2Dex => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (0, 4, 4),
+                Gold::new(50),
+                vec![Some(WeaponType::Dagger), Some(WeaponType::Shortsword)],
+                vec![
+                    Some(WeaponType::Dagger),
+                    Some(WeaponType::Shortsword),
+                    Some(WeaponType::Shield),
+                    None,
+                ],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![
+                    (WeaponType::Dagger, Some(Dice::D4)),
+                    (WeaponType::Shortsword, Some(Dice::D4)),
+                ],
+                vec![
+                    (ArmorType::Leather, Some(Dice::D4)),
+                    (ArmorType::StudedLeather, Some(Dice::D8)),
+                ],
+                vec![],
+                vec![
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                ],
+                2,
+            ),
+            MonsterType::BanditLevel2Str => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (4, 0, 4),
+                Gold::new(50),
+                vec![Some(WeaponType::Shortsword), Some(WeaponType::Longsword)],
+                vec![Some(WeaponType::Shield), None],
+                vec![
+                    Some(ArmorType::Leather),
+                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::ChainMail),
+                ],
+                vec![
+                    (WeaponType::Dagger, Some(Dice::D4)),
+                    (WeaponType::Shortsword, Some(Dice::D4)),
+                    (WeaponType::Longsword, Some(Dice::D4)),
+                ],
+                vec![
+                    (ArmorType::Leather, Some(Dice::D4)),
+                    (ArmorType::ChainShirt, Some(Dice::D8)),
+                    (ArmorType::BreastPlate, Some(Dice::D8)),
+                ],
+                vec![],
+                vec![
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                ],
+                2,
+            ),
+            MonsterType::BanditLevel3Dex => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (0, 6, 4),
+                Gold::new(100),
+                vec![Some(WeaponType::Dagger), Some(WeaponType::Shortsword)],
+                vec![Some(WeaponType::Shortsword), Some(WeaponType::Shield)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![
+                    (WeaponType::Dagger, Some(Dice::D4)),
+                    (WeaponType::Shortsword, None),
+                ],
+                vec![
+                    (ArmorType::Leather, Some(Dice::D4)),
+                    (ArmorType::StudedLeather, Some(Dice::D4)),
+                ],
+                vec![],
+                vec![
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                ],
+                3,
+            ),
+            MonsterType::BanditLevel3Str => MonsterDefinition::new_simple(
+                &["Bandit"],
+                (6, 0, 4),
+                Gold::new(100),
+                vec![Some(WeaponType::Longsword)],
+                vec![Some(WeaponType::Shield), None],
+                vec![
+                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::BreastPlate),
+                    Some(ArmorType::HalfPlate),
+                ],
+                vec![
+                    (WeaponType::Dagger, Some(Dice::D4)),
+                    (WeaponType::Shortsword, Some(Dice::D4)),
+                    (WeaponType::Longsword, Some(Dice::D4)),
+                ],
+                vec![
+                    (ArmorType::Leather, Some(Dice::D4)),
+                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::BreastPlate, Some(Dice::D6)),
+                    (ArmorType::HalfPlate, Some(Dice::D6)),
+                ],
+                vec![],
+                vec![
+                    (ItemType::ScrollOfWeaken, Some(Dice::D8)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                    (ItemType::PotionOfHealing, Some(Dice::D4)),
+                ],
+                3,
+            ),
             MonsterType::BeastLevel00 => MonsterDefinition::new_simple(
                 &["Rat", "Lizard", "Pig", "Frog", "Crap"],
                 (-2, -2, -4),
                 Gold::new(5),
-                None,
-                Some(WeaponType::MonsterNone),
-                None,
+                vec![None],
+                vec![Some(WeaponType::MonsterNone)],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -153,9 +309,9 @@ impl MonsterType {
                 &["Badger", "Goat", "Weasel"],
                 (-2, 1, -4),
                 Gold::new(10),
-                None,
-                Some(WeaponType::MonsterD4),
-                None,
+                vec![None],
+                vec![Some(WeaponType::MonsterD4)],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -166,9 +322,9 @@ impl MonsterType {
                 &["Wolf"],
                 (-1, 0, -1),
                 Gold::new(5),
-                None,
-                Some(WeaponType::MonsterNone),
-                None,
+                vec![None],
+                vec![Some(WeaponType::MonsterNone)],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -179,9 +335,9 @@ impl MonsterType {
                 &["Dire wolf"],
                 (0, 0, 0),
                 Gold::new(5),
-                None,
-                None,
-                None,
+                vec![None],
+                vec![None],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -192,9 +348,9 @@ impl MonsterType {
                 &["Giant Spider"],
                 (2, 3, 1),
                 Gold::new(20),
-                None,
-                Some(WeaponType::MonsterD8P2),
-                None,
+                vec![None],
+                vec![Some(WeaponType::MonsterD8P2)],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -205,9 +361,9 @@ impl MonsterType {
                 &["Giant Spider"],
                 (2, 1, 1),
                 Gold::new(20),
-                None,
-                Some(WeaponType::MonsterD10P2),
-                None,
+                vec![None],
+                vec![Some(WeaponType::MonsterD10P2)],
+                vec![None],
                 vec![],
                 vec![],
                 vec![],
@@ -240,15 +396,16 @@ impl MonsterDefinition {
         name: &[&str],
         bonus: (i16, i16, i16),
         gold: Gold,
-        equipped_weapon: Option<WeaponType>,
-        equipped_offhand: Option<WeaponType>,
-        equipped_armor: Option<ArmorType>,
+        equipped_weapon: Vec<Option<WeaponType>>,
+        equipped_offhand: Vec<Option<WeaponType>>,
+        equipped_armor: Vec<Option<ArmorType>>,
         weapon_inventory: Vec<(WeaponType, Option<Dice>)>,
         armor_inventory: Vec<(ArmorType, Option<Dice>)>,
         jewelry_inventory: Vec<(JewelryType, Option<Dice>)>,
         item_inventory: Vec<(ItemType, Option<Dice>)>,
         level: u16,
     ) -> Self {
+        let mut rng = rand::rng();
         let weapon_inventory = roll_items(weapon_inventory);
         let armor_inventory = roll_items(armor_inventory);
         let jewelry_inventory = roll_items(jewelry_inventory);
@@ -272,6 +429,10 @@ impl MonsterDefinition {
             .collect();
 
         let name = name.choose(&mut rand::rng()).unwrap();
+
+        let equipped_weapon = roll_equipped(equipped_weapon, &mut rng);
+        let equipped_offhand = roll_equipped(equipped_offhand, &mut rng);
+        let equipped_armor = roll_equipped(equipped_armor, &mut rng);
 
         Self {
             name: name.to_string(),
@@ -343,4 +504,8 @@ fn roll_items<T>(items: Vec<(T, Option<Dice>)>) -> Vec<T> {
             None => Some(item.0),
         })
         .collect()
+}
+
+fn roll_equipped<T>(items: Vec<Option<T>>, rng: &mut ThreadRng) -> Option<T> {
+    items.into_iter().choose(rng).unwrap()
 }

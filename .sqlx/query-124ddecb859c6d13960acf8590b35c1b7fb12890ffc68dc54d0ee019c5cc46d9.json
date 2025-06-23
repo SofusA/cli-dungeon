@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            update encounters\n            set rotation = $2, dead_characters = $3\n            where rowid = $1\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "124ddecb859c6d13960acf8590b35c1b7fb12890ffc68dc54d0ee019c5cc46d9"
+}

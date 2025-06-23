@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            insert into encounters (rotation, dead_characters) values ($1, $2);\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "0304ef9dbeac92b6c6675f9922e55d7cad05842ed8ddbaf6d41e700e3a8480ab"
+}

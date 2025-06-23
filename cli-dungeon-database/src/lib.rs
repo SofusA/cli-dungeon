@@ -135,13 +135,14 @@ pub struct CharacterInfo {
 pub async fn create_player_character(
     pool: &Pool,
     name: &str,
+    secret: Option<i64>,
     ability_scores: AbilityScores,
 ) -> CharacterInfo {
     let party_id = create_party(pool).await;
 
     let base_ability_scores_serialized = to_string(&ability_scores).unwrap();
     let health = max_health(&ability_scores.constitution, Level::new(0));
-    let secret = rand::random_range(1..=10000);
+    let secret = secret.unwrap_or(rand::random_range(1..=10000));
     let weapon_inventory: Vec<WeaponType> = vec![];
     let armor_inventory: Vec<ArmorType> = vec![];
     let jewelry_inventory: Vec<JewelryType> = vec![];
@@ -165,6 +166,7 @@ pub async fn create_player_character(
             insert into characters (secret,
             name,
             character_type,
+            is_player,
             gold,
             base_ability_scores,
             current_health,
@@ -178,11 +180,12 @@ pub async fn create_player_character(
             party_id,
             short_rests,
             active_conditions)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-            "#,
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        "#,
         secret,
         name,
         character_type,
+        true,
         30,
         base_ability_scores_serialized,
         *health,
@@ -214,8 +217,8 @@ pub async fn create_encounter(pool: &Pool, rotation: Vec<i64>) -> i64 {
 
     let result = sqlx::query!(
         r#"
-                insert into encounters (rotation, dead_characters) values ($1, $2);
-            "#,
+            insert into encounters (rotation, dead_characters) values ($1, $2);
+        "#,
         rotation_json,
         dead_characters_json
     )
@@ -234,7 +237,8 @@ pub async fn update_encounter(pool: &Pool, encounter_id: i64, rotation: Vec<i64>
         r#"
             update encounters
             set rotation = $2, dead_characters = $3
-            where rowid = $1"#,
+            where rowid = $1
+        "#,
         encounter_id,
         rotation_json,
         dead_json
@@ -248,9 +252,9 @@ pub async fn update_encounter(pool: &Pool, encounter_id: i64, rotation: Vec<i64>
 pub async fn create_party(pool: &Pool) -> i64 {
     let result = sqlx::query!(
         r#"
-                update party_counter set value = value + 1;
-                select value from party_counter;
-            "#,
+            update party_counter set value = value + 1;
+            select value from party_counter;
+        "#,
     )
     .fetch_one(pool)
     .await
@@ -301,6 +305,7 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
             secret,
             name,
             character_type,
+            is_player,
             gold,
             experience,
             base_ability_scores,
@@ -317,11 +322,12 @@ pub async fn create_monster(pool: &Pool, monster: MonsterType, party_id: i64) ->
             status,
             party_id,
             active_conditions)
-            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+            values ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
         "#,
         secret,
         monster.name,
         character_type,
+        false,
         *monster.gold,
         0,
         base_ability_scores_serialized,

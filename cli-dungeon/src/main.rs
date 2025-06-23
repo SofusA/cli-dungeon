@@ -20,6 +20,10 @@ enum Commands {
     CreateCharacter {
         #[arg(short, long)]
         name: String,
+
+        /// Specify the character authentication secret
+        #[arg(long)]
+        secret: Option<i64>,
         #[arg(short, long)]
         strength: i16,
         #[arg(short, long)]
@@ -125,11 +129,13 @@ async fn main() -> Result<()> {
             strength,
             dexterity,
             constitution,
+            secret,
         } => {
             encounter::ensure_default_script();
             let character_info = cli_dungeon_core::character::create_character(
                 &pool,
                 name,
+                secret,
                 strength,
                 dexterity,
                 constitution,
@@ -431,6 +437,7 @@ mod tests {
         let character_info = cli_dungeon_core::character::create_character(
             &pool,
             "testington".to_string(),
+            None,
             starting_str_bonus,
             starting_dex_bonus,
             starting_con_bonus,
@@ -489,6 +496,7 @@ mod tests {
         let character_info = cli_dungeon_core::character::create_character(
             &pool,
             "testington".to_string(),
+            None,
             starting_str_bonus,
             starting_dex_bonus,
             starting_con_bonus,

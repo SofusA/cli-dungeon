@@ -242,8 +242,7 @@ impl Character {
 
     pub fn experience_level(&self) -> Level {
         let thresholds = [
-            100, 300, 900,
-            // 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+            100, 300, 900, 2700, //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
         ];
 
         for (level, &threshold) in thresholds.iter().enumerate() {

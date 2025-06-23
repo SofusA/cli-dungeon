@@ -16,10 +16,15 @@ use crate::GameError;
 pub async fn create_character(
     pool: &Pool,
     name: String,
+    secret: Option<i64>,
     strength: i16,
     dexterity: i16,
     constitution: i16,
 ) -> Result<CharacterInfo, GameError> {
+    if strength < 0 || dexterity < 0 || constitution < 0 {
+        return Err(GameError::AbilityNegativeError);
+    }
+
     let mut instance = StringSanitizer::from(name.as_str());
     instance.alphanumeric();
     let sanitized_name = instance.get();
@@ -29,8 +34,13 @@ pub async fn create_character(
     }
     let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
 
-    let character_info =
-        cli_dungeon_database::create_player_character(pool, &sanitized_name, ability_scores).await;
+    let character_info = cli_dungeon_database::create_player_character(
+        pool,
+        &sanitized_name,
+        secret,
+        ability_scores,
+    )
+    .await;
     Ok(character_info)
 }
 
@@ -298,7 +308,7 @@ mod tests {
     async fn can_short_rest(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), 0, 6, 4)
+        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
             .await
             .unwrap();
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
@@ -337,7 +347,7 @@ mod tests {
     async fn questing_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), 0, 6, 4)
+        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
             .await
             .unwrap();
         cli_dungeon_database::set_active_character(&pool, &character_info).await;

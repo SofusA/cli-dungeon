@@ -736,7 +736,7 @@ mod tests {
         let mut str_wins = 0;
 
         for _ in 0..rounds {
-            let dex = create_character(&pool, "dex".to_string(), 0, 6, 4)
+            let dex = create_character(&pool, "dex".to_string(), None, 0, 6, 4)
                 .await
                 .unwrap();
 
@@ -744,7 +744,7 @@ mod tests {
             cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
             cli_dungeon_database::equip_offhand(&pool, &dex.id, WeaponType::Shortsword).await;
 
-            let str = create_character(&pool, "str".to_string(), 6, 0, 4)
+            let str = create_character(&pool, "str".to_string(), None, 6, 0, 4)
                 .await
                 .unwrap();
 
@@ -815,7 +815,7 @@ mod tests {
         let mut str_wins = 0;
 
         for _ in 0..rounds {
-            let dex = create_character(&pool, "dex".to_string(), 0, 6, 4)
+            let dex = create_character(&pool, "dex".to_string(), None, 0, 6, 4)
                 .await
                 .unwrap();
 
@@ -835,7 +835,7 @@ mod tests {
                 .unwrap();
             }
 
-            let str = create_character(&pool, "str".to_string(), 6, 0, 4)
+            let str = create_character(&pool, "str".to_string(), None, 6, 0, 4)
                 .await
                 .unwrap();
 
