@@ -46,6 +46,10 @@ pub struct Character {
     pub active_conditions: Vec<ActiveCondition>,
 }
 
+const EXPERIENCE_THRESHOLDS: [u32; 4] = [
+    100, 600, 2000, 6500, //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+];
+
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {
     let health = 12 + 6 * *level as i16 + *constitution.ability_score_bonus() * 2;
     HealthPoints::new(health)
@@ -86,7 +90,7 @@ pub enum CharacterWeapon {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AvailableAction {
     Attack,
-    Item(ItemAction),
+    Item(ItemType),
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -165,31 +169,30 @@ impl Character {
         }
     }
 
-    pub fn healing_potion(&self) -> Option<ItemAction> {
+    pub fn healing_potion(&self) -> Option<ItemType> {
         self.item_inventory
             .iter()
             .find(|x| matches!(x.item_action(), ItemAction::Healing(_)))
-            .map(|x| x.item_action())
+            .copied()
     }
 
     pub fn available_actions(&self) -> Vec<AvailableActionDefinition> {
         let mut actions: Vec<_> = self
             .item_inventory
             .iter()
-            .map(|item| item.to_item())
-            .flat_map(|item| match item.action {
-                ActionType::Action(item_action) => Some((item.name, item_action)),
+            .flat_map(|item| match item.to_item().action {
+                ActionType::Action(item_action) => Some((item, item_action)),
                 ActionType::BonusAction(_) => None,
             })
-            .map(|action| match action.1 {
-                ItemAction::Spell(_) => (action.0, action.1, true),
-                ItemAction::Projectile(_) => (action.0, action.1, true),
-                ItemAction::Healing(_) => (action.0, action.1, false),
+            .map(|item| match item.1 {
+                ItemAction::Spell(_) => (item.0, item.1, true),
+                ItemAction::Projectile(_) => (item.0, item.1, true),
+                ItemAction::Healing(_) => (item.0, item.1, false),
             })
-            .map(|action| AvailableActionDefinition {
-                name: action.0,
-                action: AvailableAction::Item(action.1),
-                requires_target: action.2,
+            .map(|item| AvailableActionDefinition {
+                name: item.0.to_item().name,
+                action: AvailableAction::Item(*item.0),
+                requires_target: item.2,
             })
             .collect();
 
@@ -206,20 +209,19 @@ impl Character {
         let mut actions: Vec<_> = self
             .item_inventory
             .iter()
-            .map(|item| item.to_item())
-            .flat_map(|item| match item.action {
-                ActionType::BonusAction(item_action) => Some((item.name, item_action, true)),
+            .flat_map(|item| match item.to_item().action {
+                ActionType::BonusAction(item_action) => Some((item, item_action)),
                 ActionType::Action(_) => None,
             })
-            .map(|action| match action.1 {
-                ItemAction::Spell(_) => (action.0, action.1, true),
-                ItemAction::Projectile(_) => (action.0, action.1, true),
-                ItemAction::Healing(_) => (action.0, action.1, false),
+            .map(|item| match item.1 {
+                ItemAction::Spell(_) => (item.0, item.1, true),
+                ItemAction::Projectile(_) => (item.0, item.1, true),
+                ItemAction::Healing(_) => (item.0, item.1, false),
             })
-            .map(|action| AvailableBonusActionDefinition {
-                name: action.0,
-                action: AvailableAction::Item(action.1),
-                requires_target: action.2,
+            .map(|item| AvailableBonusActionDefinition {
+                name: item.0.to_item().name,
+                action: AvailableAction::Item(*item.0),
+                requires_target: item.2,
             })
             .collect();
 
@@ -241,17 +243,19 @@ impl Character {
     }
 
     pub fn experience_level(&self) -> Level {
-        let thresholds = [
-            100, 300, 900, 2700, //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
-        ];
-
-        for (level, &threshold) in thresholds.iter().enumerate() {
+        for (level, &threshold) in EXPERIENCE_THRESHOLDS.iter().enumerate() {
             if *self.experience < threshold {
                 return Level::new(level as u16);
             }
         }
+        Level::new(EXPERIENCE_THRESHOLDS.len() as u16)
+    }
 
-        Level::new(thresholds.len() as u16)
+    pub fn experience_for_next_level(&self) -> Option<Experience> {
+        EXPERIENCE_THRESHOLDS
+            .get(*self.level() as usize)
+            .copied()
+            .map(Experience::new)
     }
 
     pub fn level(&self) -> Level {
@@ -343,7 +347,7 @@ impl Character {
     }
 
     pub fn is_alive(&self) -> bool {
-        *self.current_health >= 0
+        *self.current_health > 0
     }
 
     pub fn armor_points(&self) -> ArmorPoints {
@@ -531,7 +535,7 @@ mod tests {
                 },
                 AvailableActionDefinition {
                     name: scroll_of_weaken.to_item().name,
-                    action: AvailableAction::Item(scroll_of_weaken.item_action()),
+                    action: AvailableAction::Item(scroll_of_weaken),
                     requires_target: true
                 },
             ]
@@ -550,7 +554,7 @@ mod tests {
                 },
                 AvailableBonusActionDefinition {
                     name: healing_potion.to_item().name,
-                    action: AvailableAction::Item(healing_potion.item_action()),
+                    action: AvailableAction::Item(healing_potion),
                     requires_target: false
                 },
             ]

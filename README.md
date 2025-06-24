@@ -2,22 +2,16 @@
 Inspired by dice-based table-top RPGs, `cli-dungeon` brings dungeon crawling to your terminal with a twist of automation and scripting.
 
 ```
-It is Sofusa's turn!
-Bandit took 5 damage
-Bandit took 3 damage
-It is Bandit's turn!
-Bandit missed
-Bandit missed
-It is Sofusa's turn!
-Sofusa missed
-Bandit took 1 damage
-It is Bandit's turn!
-Sofusa took 2 damage
-Bandit missed
-It is Sofusa's turn!
-Sofusa missed
-Bandit took 4 damage
-Bandit died  
+New encounter: Rat, Swordington
+Swordington attacked Rat: Swordington missed
+Swordington attacked Rat: Swordington missed
+Rat attacked Swordington: Rat missed
+Swordington attacked Rat: 3 damage
+Swordington attacked Rat: Swordington missed
+Rat attacked Swordington: Rat missed
+Swordington attacked Rat: 5 damage
+Rat died
++5 gold
 ```
 
 ## Introduction
@@ -40,26 +34,20 @@ There is a change of *something happens* whenever `cli-dungeon play` is run, and
 `cli-dungeon` is meant to be set up as part of your cli prompt, so that everytime you run a command, something might happen. 
 
 A simple setup would be to alias `cd`:
-```bash
-alias cd="cli-dungeon play; cd"
-```
-
-### Example in `fish`
-This is my personal fish prompt.
-`cli-dungeon play` on every prompt in the terminal.
-
+- fish
 ```fish
-function fish_prompt
+function cd
     cli-dungeon play
-    set -l last_status $status
-    set -l stat
-    if test $last_status -ne 0
-        set stat (set_color red)"[$last_status]"(set_color normal)
-    end
-
-    string join '' -- (set_color blue) (prompt_pwd) (set_color normal) $stat '> '
+    builtin cd $argv
 end
+```
+- bash
 
+```bash
+cd () {
+    cli-dungeon play
+    builtin cd "$@"
+}
 ```
 
 ## Basic rules
@@ -72,6 +60,10 @@ Equip your purchase with `cli-dungeon character equip`.
 See your character's current status with `cli-dungeon character status`.
 
 You are now ready to meet your first enemy!
+
+## Resting
+You can rest your character with `cli-dungeon character rest long` if you need to silence `cli-dungeon` for a while.
+You need to set your character to quest again with `cli-dungeon character quest`.
 
 ## Action script
 `cli-dungeon` creates an `encounter.rhai` file in your configuration directory. Usually `.config/cli-dungeon` on linux and macos.

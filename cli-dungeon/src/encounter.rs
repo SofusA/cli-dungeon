@@ -6,6 +6,8 @@ use cli_dungeon_rules::{Encounter, character::Character, items::ActionType};
 use color_print::{cprint, cprintln};
 use rhai::{CustomType, Dynamic, Engine, ImmutableString, Map, Scope, TypeBuilder};
 
+use crate::health_bar;
+
 #[derive(Clone, CustomType)]
 struct EncounterCharacter {
     id: i64,
@@ -128,12 +130,12 @@ impl EncounterAction {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
                     self.action_target.map(Action::Attack)
                 }
-                cli_dungeon_rules::character::AvailableAction::Item(item_action) => {
+                cli_dungeon_rules::character::AvailableAction::Item(item) => {
                     match action.requires_target {
                         true => self
                             .action_target
-                            .map(|target| Action::ItemWithTarget(item_action, target)),
-                        false => Some(Action::Item(item_action)),
+                            .map(|target| Action::ItemWithTarget(item, target)),
+                        false => Some(Action::Item(item)),
                     }
                 }
             })
@@ -148,12 +150,12 @@ impl EncounterAction {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
                     self.bonus_action_target.map(BonusAction::OffhandAttack)
                 }
-                cli_dungeon_rules::character::AvailableAction::Item(item_action) => {
+                cli_dungeon_rules::character::AvailableAction::Item(item) => {
                     match action.requires_target {
                         true => self
                             .action_target
-                            .map(|target| BonusAction::ItemWithTarget(item_action, target)),
-                        false => Some(BonusAction::Item(item_action)),
+                            .map(|target| BonusAction::ItemWithTarget(item, target)),
+                        false => Some(BonusAction::Item(item)),
                     }
                 }
             })
@@ -308,37 +310,73 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
 
         display_turn_outcome(outcome);
     }
+
+    if let Ok(character) = cli_dungeon_core::character::get_character(pool, character_info).await {
+        if character.level() < character.experience_level() {
+            cprintln!("<red>Can level up!</>");
+        }
+        cprintln!(
+            "<white>Health:</> {}",
+            health_bar(character.current_health, character.max_health())
+        );
+    };
 }
 
 pub fn display_turn_outcome(outcome: Vec<TurnOutcome>) {
     for outcome in outcome {
         match outcome {
-            TurnOutcome::Miss(character_name) => {
-                cprintln!("<yellow>{} missed</>", character_name)
-            }
             TurnOutcome::Attack(attack) => {
-                println!("{} attacked {}", attack.attacker_name, attack.attacked_name)
+                cprint!(
+                    "{} attacked {}: ",
+                    attack.attacker_name,
+                    attack.attacked_name
+                )
             }
+            TurnOutcome::Miss(character_name) => cprintln!("<white>{} missed</>", character_name),
             TurnOutcome::Hit(hit) => {
                 if hit.critical_hit {
                     cprint!("<red>Critical hit!</> ");
                 }
-                println!("{} took {} damage", hit.character_name, hit.damage);
+                cprintln!("<yellow>{} damage</>", hit.damage);
             }
-            TurnOutcome::Death(character_name) => {
-                cprintln!("<red>{} died</>", character_name)
-            }
-            TurnOutcome::StartTurn(character_name) => {
-                cprintln!("<green>It is {}'s turn!</>", character_name)
-            }
+            TurnOutcome::Death(character_name) => cprintln!("<red>{} died</>", character_name),
             TurnOutcome::ConditionSet((character_name, condition)) => {
                 cprintln!("<yellow>{} got {} condition</>", character_name, condition)
             }
-            TurnOutcome::Healed((character_name, health)) => {
+            TurnOutcome::Healed((character_name, health)) => cprintln!(
+                "<red>{} healed by {} health points</>",
+                character_name,
+                health
+            ),
+            TurnOutcome::GoldReceived((_character_name, gold)) => {
+                cprintln!("<green><yellow>+{} gold</></>", gold)
+            }
+            TurnOutcome::LootReceived((character_name, loot)) => {
+                let combined_loot: Vec<String> = loot
+                    .weapons
+                    .iter()
+                    .map(|weapon| weapon.to_weapon().name)
+                    .chain(loot.armor.iter().map(|armor| armor.to_armor().name))
+                    .chain(loot.jewelry.iter().map(|jewelry| jewelry.to_jewelry().name))
+                    .chain(loot.items.iter().map(|item| item.to_item().name))
+                    .collect();
+                if !combined_loot.is_empty() {
+                    cprintln!(
+                        "<green>{} received loot: {}</>",
+                        character_name,
+                        combined_loot.join(" ")
+                    );
+                }
+            }
+            TurnOutcome::UsedItem((character, item)) => {
+                cprintln!("<white>{} used {}</>", character, item.to_item().name)
+            }
+            TurnOutcome::UsedItemOn((character, item, target)) => {
                 cprintln!(
-                    "<red>{} healed by {} health points</>",
-                    character_name,
-                    health
+                    "<white>{} used {} on {}</>",
+                    character,
+                    item.to_item().name,
+                    target
                 )
             }
         }
@@ -457,11 +495,11 @@ mod tests {
 
         assert_eq!(
             result.0.unwrap(),
-            Action::ItemWithTarget(ItemType::ScrollOfWeaken.item_action(), 2)
+            Action::ItemWithTarget(ItemType::ScrollOfWeaken, 2)
         );
         assert_eq!(
             result.1.unwrap(),
-            BonusAction::Item(ItemType::PotionOfHealing.item_action())
+            BonusAction::Item(ItemType::PotionOfHealing)
         );
     }
 

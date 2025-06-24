@@ -51,6 +51,7 @@ pub async fn rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), Gam
     cli_dungeon_database::set_character_quest_points(pool, &character.id, QuestPoint::new(0)).await;
     cli_dungeon_database::set_character_health(pool, &character.id, character.max_health()).await;
     cli_dungeon_database::set_character_conditions(pool, &character.id, vec![]).await;
+    cli_dungeon_database::set_character_short_rests(pool, &character.id, 2).await;
 
     Ok(())
 }
@@ -131,11 +132,16 @@ pub async fn equip_main_hand(
     };
 
     let character = get_character(pool, character_info).await?;
+    let weapon_stats = parsed_weapon.to_weapon();
 
     let in_offhand = character
         .equipped_offhand
         .is_some_and(|weapon| weapon == parsed_weapon);
     let expected_count = if in_offhand { 2 } else { 1 };
+
+    if **character.ability_scores().strength < **weapon_stats.strength_requirement {
+        return Err(GameError::InsufficientStrength);
+    }
 
     if character
         .weapon_inventory
@@ -147,7 +153,7 @@ pub async fn equip_main_hand(
         return Err(GameError::WeaponNotInInventory);
     };
 
-    if parsed_weapon.to_weapon().two_handed {
+    if weapon_stats.two_handed {
         cli_dungeon_database::unequip_offhand(pool, &character_info.id).await;
     }
 
@@ -236,6 +242,10 @@ pub async fn equip_offhand(
         .equipped_weapon
         .is_some_and(|weapon| weapon == parsed_weapon);
     let expected_count = if in_main_hand { 2 } else { 1 };
+
+    if **character.ability_scores().strength < **weapon_stats.strength_requirement {
+        return Err(GameError::InsufficientStrength);
+    }
 
     if character
         .weapon_inventory
@@ -408,7 +418,7 @@ mod tests {
     async fn two_handed_weapon_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
+        let character_info = create_character(&pool, "testington".to_string(), None, 10, 0, 0)
             .await
             .unwrap();
         cli_dungeon_database::set_active_character(&pool, &character_info).await;

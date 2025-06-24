@@ -18,7 +18,7 @@ pub mod turn;
 
 pub enum PlayOutcome {
     NothingNew(Status),
-    NewFight(Vec<TurnOutcome>),
+    NewFight((Vec<String>, Vec<TurnOutcome>)),
     CompletedQuest(Loot),
 }
 
@@ -104,7 +104,7 @@ async fn get_status(pool: &Pool, character_info: &CharacterInfo) -> Result<Statu
     )
 }
 
-async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
+async fn new_encounter(pool: &Pool, player_id: i64) -> (Vec<String>, Vec<TurnOutcome>) {
     let player = cli_dungeon_database::get_character(pool, &player_id)
         .await
         .unwrap();
@@ -115,14 +115,23 @@ async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
         cli_dungeon_rules::monsters::get_monster_encounter(player.level())
             .into_iter()
             .map(async |enemy| {
-                cli_dungeon_database::create_monster(pool, enemy, enemy_party_id)
-                    .await
-                    .id
+                cli_dungeon_database::create_monster(pool, enemy, enemy_party_id).await
             }),
     )
     .await;
 
-    let mut participants = monsters.clone();
+    let mut participant_names: Vec<_> = join_all(monsters.iter().map(async |x| {
+        cli_dungeon_database::get_character(pool, &x.id)
+            .await
+            .unwrap()
+    }))
+    .await
+    .iter()
+    .map(|x| x.name.clone())
+    .collect();
+    participant_names.push(player.name);
+
+    let mut participants: Vec<_> = monsters.iter().map(|x| x.id).collect();
     participants.push(player_id);
 
     let mut initiative: Vec<_> = participants
@@ -147,5 +156,5 @@ async fn new_encounter(pool: &Pool, player_id: i64) -> Vec<TurnOutcome> {
 
     monsters_take_turn(pool, encounter_id, &mut outcome).await;
 
-    outcome
+    (participant_names, outcome)
 }

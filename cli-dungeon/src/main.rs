@@ -1,7 +1,10 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
-use cli_dungeon_rules::classes::ClassType;
+use cli_dungeon_rules::{
+    classes::ClassType,
+    types::{Experience, HealthPoints},
+};
 use color_print::{cformat, cprintln};
 use encounter::{display_turn_outcome, handle_encounter};
 
@@ -145,16 +148,23 @@ async fn main() -> Result<()> {
             cli_dungeon_core::character::quest(&pool, &character_info).await?;
         }
         Commands::Character { command } => match command {
-            CharacterCommands::Rest { command } => match command {
-                RestCommands::Long => {
-                    let character_info = cli_dungeon_database::get_active_character(&pool).await?;
-                    cli_dungeon_core::character::rest(&pool, &character_info).await?;
+            CharacterCommands::Rest { command } => {
+                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                match command {
+                    RestCommands::Long => {
+                        cli_dungeon_core::character::rest(&pool, &character_info).await?;
+                    }
+                    RestCommands::Short => {
+                        cli_dungeon_core::character::short_rest(&pool, &character_info).await?;
+                    }
                 }
-                RestCommands::Short => {
-                    let character_info = cli_dungeon_database::get_active_character(&pool).await?;
-                    cli_dungeon_core::character::short_rest(&pool, &character_info).await?;
-                }
-            },
+                let character =
+                    cli_dungeon_core::character::get_character(&pool, &character_info).await?;
+                cprintln!(
+                    "<white>Health:</> {}",
+                    health_bar(character.current_health, character.max_health())
+                );
+            }
             CharacterCommands::Quest => {
                 let character_info = cli_dungeon_database::get_active_character(&pool).await?;
                 cli_dungeon_core::character::quest(&pool, &character_info).await?;
@@ -187,14 +197,22 @@ async fn main() -> Result<()> {
 
                 cprintln!("<red>Level: {}</>", character.level());
                 cprintln!("<blue>Name: {}</>", character.name);
+
                 if character.level() < character.experience_level() {
                     cprintln!("<red>Can level up!</>");
+                } else if let Some(next_xp) = character.experience_for_next_level() {
+                    cprintln!(
+                        "<white>Experience:</> {}",
+                        experience_bar(character.experience, next_xp)
+                    );
+                } else {
+                    cprintln!("<green>Max level reached!</>");
                 }
+
                 cprintln!("<yellow>Gold: {}</>", character.gold);
                 cprintln!(
-                    "<yellow>Health: {}/{}</>",
-                    character.current_health,
-                    character.max_health()
+                    "<white>Health:</> {}",
+                    health_bar(character.current_health, character.max_health())
                 );
                 cprintln!("Armor points: {}", character.armor_points());
                 cprintln!("Strength: {}", **character.ability_scores().strength);
@@ -378,6 +396,10 @@ async fn main() -> Result<()> {
         Commands::Play { force } => {
             let character_info = cli_dungeon_database::get_active_character(&pool).await?;
 
+            if force {
+                cli_dungeon_core::character::quest(&pool, &character_info).await?;
+            }
+
             match play(&pool, force, &character_info).await? {
                 cli_dungeon_core::PlayOutcome::NothingNew(status) => match status {
                     cli_dungeon_rules::Status::Resting => (),
@@ -386,7 +408,8 @@ async fn main() -> Result<()> {
                         handle_encounter(&pool, &character_info).await;
                     }
                 },
-                cli_dungeon_core::PlayOutcome::NewFight(outcome) => {
+                cli_dungeon_core::PlayOutcome::NewFight((participants, outcome)) => {
+                    cprintln!("<blue>New encounter: {}</>", participants.join(", "));
                     display_turn_outcome(outcome);
                     handle_encounter(&pool, &character_info).await;
                 }
@@ -408,6 +431,30 @@ async fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn health_bar(current_health: HealthPoints, max_health: HealthPoints) -> String {
+    let total_slots = 10;
+    let filled_slots =
+        ((*current_health as f32 / *max_health as f32) * total_slots as f32).round() as usize;
+    let empty_slots = total_slots - filled_slots;
+
+    let filled = "■".repeat(filled_slots);
+    let empty = "─".repeat(empty_slots);
+
+    cformat!("[<red>{}</>{}]", filled, empty)
+}
+
+pub fn experience_bar(current_xp: Experience, needed_xp: Experience) -> String {
+    let total_slots = 10;
+    let filled_slots =
+        ((*current_xp as f32 / *needed_xp as f32) * total_slots as f32).round() as usize;
+    let empty_slots = total_slots - filled_slots;
+
+    let filled = "■".repeat(filled_slots);
+    let empty = "─".repeat(empty_slots);
+
+    cformat!("[<blue>{}</>{}]", filled, empty)
 }
 
 #[cfg(test)]

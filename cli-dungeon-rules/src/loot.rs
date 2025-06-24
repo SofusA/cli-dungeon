@@ -3,6 +3,7 @@ use crate::{
     weapons::WeaponType,
 };
 
+#[derive(Debug)]
 pub struct Loot {
     pub weapons: Vec<WeaponType>,
     pub armor: Vec<ArmorType>,
