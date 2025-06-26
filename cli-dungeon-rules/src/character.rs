@@ -46,12 +46,12 @@ pub struct Character {
     pub active_conditions: Vec<ActiveCondition>,
 }
 
-const EXPERIENCE_THRESHOLDS: [u32; 4] = [
-    100, 600, 2000, 6500, //6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+const EXPERIENCE_THRESHOLDS: [u32; 12] = [
+    100, 600, 2000, 6500, 8500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
 ];
 
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {
-    let health = 12 + 6 * *level as i16 + *constitution.ability_score_bonus() * 2;
+    let health = 12 + 6 * *level as i16 + *constitution.ability_score_bonus() * 4;
     HealthPoints::new(health)
 }
 
@@ -126,6 +126,14 @@ impl Character {
                 .sum(),
         );
 
+        let strength_jewelry_bonus = Strength::new(
+            self.equipped_jewelry
+                .iter()
+                .map(|j| j.to_jewelry())
+                .map(|j| **j.strength_bonus)
+                .sum(),
+        );
+
         let dexterity_level_bonus = Dexterity::new(
             self.level_up_choices
                 .iter()
@@ -138,6 +146,14 @@ impl Character {
                 .iter()
                 .flat_map(|condition| condition.condition_type.to_condition().dexterity_bonus)
                 .map(|dexterity| **dexterity)
+                .sum(),
+        );
+
+        let dexterity_jewelry_bonus = Dexterity::new(
+            self.equipped_jewelry
+                .iter()
+                .map(|j| j.to_jewelry())
+                .map(|j| **j.dexterity_bonus)
                 .sum(),
         );
 
@@ -156,16 +172,27 @@ impl Character {
                 .sum(),
         );
 
+        let constitution_jewelry_bonus = Constitution::new(
+            self.equipped_jewelry
+                .iter()
+                .map(|j| j.to_jewelry())
+                .map(|j| **j.constitution_bonus)
+                .sum(),
+        );
+
         AbilityScores {
             strength: base_ability_scores.strength
                 + strength_level_bonus
-                + strength_condition_bonus,
+                + strength_condition_bonus
+                + strength_jewelry_bonus,
             dexterity: base_ability_scores.dexterity
                 + dexterity_level_bonus
-                + dexterity_condition_bonus,
+                + dexterity_condition_bonus
+                + dexterity_jewelry_bonus,
             constitution: base_ability_scores.constitution
                 + constitution_level_bonus
-                + constitution_condition_bonus,
+                + constitution_condition_bonus
+                + constitution_jewelry_bonus,
         }
     }
 

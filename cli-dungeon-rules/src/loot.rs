@@ -45,7 +45,10 @@ fn loot_catalogue() -> Vec<LootChances> {
             ],
             jewelry: vec![
                 (JewelryType::BrassRing, Dice::D8),
-                (JewelryType::RingOfProtection, Dice::D20),
+                (JewelryType::RingOfProtection, Dice::D12),
+                (JewelryType::RingOfStrength, Dice::D12),
+                (JewelryType::RingOfDexterity, Dice::D12),
+                (JewelryType::RingOfConstitution, Dice::D12),
             ],
         },
         LootChances {
@@ -67,7 +70,96 @@ fn loot_catalogue() -> Vec<LootChances> {
                 (ItemType::PotionOfHealing, Dice::D4),
                 (ItemType::ScrollOfWeaken, Dice::D6),
             ],
-            jewelry: vec![(JewelryType::RingOfProtection, Dice::D8)],
+            jewelry: vec![
+                (JewelryType::RingOfProtection, Dice::D10),
+                (JewelryType::RingOfStrength, Dice::D10),
+                (JewelryType::RingOfDexterity, Dice::D10),
+                (JewelryType::RingOfConstitution, Dice::D10),
+            ],
+        },
+        LootChances {
+            weapons: vec![
+                (WeaponType::Dagger, Dice::D12),
+                (WeaponType::Shortsword, Dice::D12),
+                (WeaponType::Longsword, Dice::D12),
+                (WeaponType::Rapier, Dice::D8),
+                (WeaponType::GreatSword, Dice::D8),
+                (WeaponType::GreatAxe, Dice::D8),
+            ],
+            armor: vec![
+                (ArmorType::Leather, Dice::D12),
+                (ArmorType::BreastPlate, Dice::D8),
+                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::Splint, Dice::D8),
+            ],
+            items: vec![
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::ScrollOfWeaken, Dice::D6),
+            ],
+            jewelry: vec![
+                (JewelryType::RingOfProtection, Dice::D10),
+                (JewelryType::RingOfStrength, Dice::D10),
+                (JewelryType::RingOfDexterity, Dice::D10),
+                (JewelryType::RingOfConstitution, Dice::D10),
+            ],
+        },
+        LootChances {
+            weapons: vec![
+                (WeaponType::Dagger, Dice::D12),
+                (WeaponType::Shortsword, Dice::D12),
+                (WeaponType::Longsword, Dice::D12),
+                (WeaponType::Rapier, Dice::D8),
+                (WeaponType::GreatSword, Dice::D8),
+                (WeaponType::GreatAxe, Dice::D8),
+            ],
+            armor: vec![
+                (ArmorType::Leather, Dice::D12),
+                (ArmorType::BreastPlate, Dice::D8),
+                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::Splint, Dice::D8),
+            ],
+            items: vec![
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::ScrollOfWeaken, Dice::D6),
+            ],
+            jewelry: vec![
+                (JewelryType::RingOfProtection, Dice::D10),
+                (JewelryType::RingOfStrength, Dice::D10),
+                (JewelryType::RingOfDexterity, Dice::D10),
+                (JewelryType::RingOfConstitution, Dice::D10),
+            ],
+        },
+        LootChances {
+            weapons: vec![
+                (WeaponType::Dagger, Dice::D12),
+                (WeaponType::Shortsword, Dice::D12),
+                (WeaponType::Longsword, Dice::D12),
+                (WeaponType::Rapier, Dice::D8),
+                (WeaponType::GreatSword, Dice::D8),
+                (WeaponType::GreatAxe, Dice::D8),
+            ],
+            armor: vec![
+                (ArmorType::Leather, Dice::D12),
+                (ArmorType::BreastPlate, Dice::D8),
+                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::Splint, Dice::D8),
+            ],
+            items: vec![
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::PotionOfHealing, Dice::D4),
+                (ItemType::ScrollOfWeaken, Dice::D6),
+            ],
+            jewelry: vec![
+                (JewelryType::RingOfProtection, Dice::D10),
+                (JewelryType::RingOfStrength, Dice::D10),
+                (JewelryType::RingOfDexterity, Dice::D10),
+                (JewelryType::RingOfConstitution, Dice::D10),
+            ],
         },
     ]
 }

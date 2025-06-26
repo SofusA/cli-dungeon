@@ -17,3 +17,5 @@ rand = { workspace = true }
 sqlx = { workspace = true }
 dirs = "6"
 rhai = "*"
+whoami = "*"
+config = "*"

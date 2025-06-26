@@ -628,8 +628,8 @@ mod tests {
     #[sqlx::test]
     async fn can_skip_turn(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
-        let monster_1 = MonsterType::TestMonsterWithDagger;
-        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
+        let monster_1 = MonsterType::TestMonster;
+        let monster_2 = MonsterType::TestMonster;
 
         let party_1 = cli_dungeon_database::create_party(&pool).await;
         let party_2 = cli_dungeon_database::create_party(&pool).await;
@@ -671,8 +671,8 @@ mod tests {
     #[sqlx::test]
     async fn can_heal(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
-        let monster_1 = MonsterType::TestMonsterWithDagger;
-        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
+        let monster_1 = MonsterType::TestMonster;
+        let monster_2 = MonsterType::TestMonster;
 
         let party_1 = cli_dungeon_database::create_party(&pool).await;
         let party_2 = cli_dungeon_database::create_party(&pool).await;
@@ -720,8 +720,8 @@ mod tests {
     #[sqlx::test]
     async fn can_set_conditions(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
-        let monster_1 = MonsterType::TestMonsterWithDagger;
-        let monster_2 = MonsterType::TestMonsterWithLeatherArmor;
+        let monster_1 = MonsterType::TestMonster;
+        let monster_2 = MonsterType::TestMonster;
 
         let party_1 = cli_dungeon_database::create_party(&pool).await;
         let party_2 = cli_dungeon_database::create_party(&pool).await;
@@ -806,17 +806,13 @@ mod tests {
         let mut str_wins = 0;
 
         for _ in 0..rounds {
-            let dex = create_character(&pool, "dex".to_string(), None, 0, 6, 4)
-                .await
-                .unwrap();
+            let dex = create_character(&pool, "dex".to_string(), None).await;
 
             cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::Leather).await;
             cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
             cli_dungeon_database::equip_offhand(&pool, &dex.id, WeaponType::Shortsword).await;
 
-            let str = create_character(&pool, "str".to_string(), None, 6, 0, 4)
-                .await
-                .unwrap();
+            let str = create_character(&pool, "str".to_string(), None).await;
 
             cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::BreastPlate).await;
             cli_dungeon_database::equip_weapon(&pool, &str.id, WeaponType::Longsword).await;
@@ -885,9 +881,7 @@ mod tests {
         let mut str_wins = 0;
 
         for _ in 0..rounds {
-            let dex = create_character(&pool, "dex".to_string(), None, 0, 6, 4)
-                .await
-                .unwrap();
+            let dex = create_character(&pool, "dex".to_string(), None).await;
 
             cli_dungeon_database::equip_armor(&pool, &dex.id, ArmorType::StudedLeather).await;
             cli_dungeon_database::equip_weapon(&pool, &dex.id, WeaponType::Shortsword).await;
@@ -905,9 +899,7 @@ mod tests {
                 .unwrap();
             }
 
-            let str = create_character(&pool, "str".to_string(), None, 6, 0, 4)
-                .await
-                .unwrap();
+            let str = create_character(&pool, "str".to_string(), None).await;
 
             cli_dungeon_database::equip_armor(&pool, &str.id, ArmorType::Splint).await;
             cli_dungeon_database::equip_weapon(&pool, &str.id, WeaponType::Longsword).await;

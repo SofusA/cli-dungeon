@@ -1,11 +1,16 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use cli_dungeon_core::play;
+use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
+    character::Character,
     classes::ClassType,
     types::{Experience, HealthPoints},
 };
 use color_print::{cformat, cprintln};
+use config::Config;
 use encounter::{display_turn_outcome, handle_encounter};
 
 mod encounter;
@@ -20,20 +25,7 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     /// Create new Character
-    CreateCharacter {
-        #[arg(short, long)]
-        name: String,
-
-        /// Specify the character authentication secret
-        #[arg(long)]
-        secret: Option<i64>,
-        #[arg(short, long)]
-        strength: i16,
-        #[arg(short, long)]
-        dexterity: i16,
-        #[arg(short, long)]
-        constitution: i16,
-    },
+    CreateCharacter,
 
     /// Character options
     Character {
@@ -120,6 +112,39 @@ enum RestCommands {
     Short,
 }
 
+pub fn config_path() -> PathBuf {
+    let mut config = dirs::config_dir().unwrap();
+    config.push("cli-dungeon");
+
+    std::fs::create_dir_all(&config).unwrap();
+
+    config
+}
+
+async fn get_character(pool: &Pool) -> CharacterInfo {
+    if let Ok(character_info) = cli_dungeon_database::get_active_character(pool).await {
+        return character_info;
+    }
+
+    let settings = Config::builder()
+        .add_source(config::File::new(
+            &config_path().into_os_string().into_string().unwrap(),
+            config::FileFormat::Toml,
+        ))
+        .build()
+        .unwrap();
+
+    let name = settings.get_string("name").unwrap_or(whoami::username());
+    let secret = settings.get_int("secret").ok();
+
+    encounter::ensure_default_script();
+
+    let character_info = cli_dungeon_core::character::create_character(pool, name, secret).await;
+    cli_dungeon_database::set_active_character(pool, &character_info).await;
+
+    character_info
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -127,29 +152,13 @@ async fn main() -> Result<()> {
     cli_dungeon_database::init(&pool).await;
 
     match args.command {
-        Commands::CreateCharacter {
-            name,
-            strength,
-            dexterity,
-            constitution,
-            secret,
-        } => {
-            encounter::ensure_default_script();
-            let character_info = cli_dungeon_core::character::create_character(
-                &pool,
-                name,
-                secret,
-                strength,
-                dexterity,
-                constitution,
-            )
-            .await?;
-            cli_dungeon_database::set_active_character(&pool, &character_info).await;
-            cli_dungeon_core::character::quest(&pool, &character_info).await?;
+        Commands::CreateCharacter => {
+            get_character(&pool).await;
         }
         Commands::Character { command } => match command {
             CharacterCommands::Rest { command } => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
+
                 match command {
                     RestCommands::Long => {
                         cli_dungeon_core::character::rest(&pool, &character_info).await?;
@@ -166,7 +175,7 @@ async fn main() -> Result<()> {
                 );
             }
             CharacterCommands::Quest => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 cli_dungeon_core::character::quest(&pool, &character_info).await?;
             }
             CharacterCommands::LevelUp { command } => match command {
@@ -180,7 +189,7 @@ async fn main() -> Result<()> {
                     class,
                     ability_increment,
                 } => {
-                    let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                    let character_info = get_character(&pool).await;
                     cli_dungeon_core::character::levelup(
                         &pool,
                         &character_info,
@@ -191,23 +200,14 @@ async fn main() -> Result<()> {
                 }
             },
             CharacterCommands::Status => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 let character =
                     cli_dungeon_core::character::get_character(&pool, &character_info).await?;
 
                 cprintln!("<red>Level: {}</>", character.level());
                 cprintln!("<blue>Name: {}</>", character.name);
 
-                if character.level() < character.experience_level() {
-                    cprintln!("<red>Can level up!</>");
-                } else if let Some(next_xp) = character.experience_for_next_level() {
-                    cprintln!(
-                        "<white>Experience:</> {}",
-                        experience_bar(character.experience, next_xp)
-                    );
-                } else {
-                    cprintln!("<green>Max level reached!</>");
-                }
+                print_experience_bar(&character);
 
                 cprintln!("<yellow>Gold: {}</>", character.gold);
                 cprintln!(
@@ -275,7 +275,7 @@ async fn main() -> Result<()> {
                 armor,
                 jewelry,
             } => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 if let Some(main_hand) = main_hand {
                     cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand)
                         .await?;
@@ -293,15 +293,14 @@ async fn main() -> Result<()> {
                 }
             }
             CharacterCommands::Unequip { jewelry } => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 if let Some(jewelry) = jewelry {
                     cli_dungeon_core::character::unequip_jewelry(&pool, &character_info, jewelry)
                         .await?;
                 }
             }
             CharacterCommands::Actions => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
-
+                let character_info = get_character(&pool).await;
                 let character = cli_dungeon_core::character::get_character(&pool, &character_info)
                     .await
                     .unwrap();
@@ -385,17 +384,16 @@ async fn main() -> Result<()> {
                 );
             }
             ShopCommands::Buy { item } => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 cli_dungeon_core::shop::buy(&pool, &character_info, item).await?;
             }
             ShopCommands::Sell { item } => {
-                let character_info = cli_dungeon_database::get_active_character(&pool).await?;
+                let character_info = get_character(&pool).await;
                 cli_dungeon_core::shop::sell(&pool, &character_info, item).await?;
             }
         },
         Commands::Play { force } => {
-            let character_info = cli_dungeon_database::get_active_character(&pool).await?;
-
+            let character_info = get_character(&pool).await;
             if force {
                 cli_dungeon_core::character::quest(&pool, &character_info).await?;
             }
@@ -445,7 +443,7 @@ pub fn health_bar(current_health: HealthPoints, max_health: HealthPoints) -> Str
     cformat!("[<red>{}</>{}]", filled, empty)
 }
 
-pub fn experience_bar(current_xp: Experience, needed_xp: Experience) -> String {
+fn experience_bar(current_xp: Experience, needed_xp: Experience) -> String {
     let total_slots = 10;
     let filled_slots =
         ((*current_xp as f32 / *needed_xp as f32) * total_slots as f32).round() as usize;
@@ -455,6 +453,19 @@ pub fn experience_bar(current_xp: Experience, needed_xp: Experience) -> String {
     let empty = "─".repeat(empty_slots);
 
     cformat!("[<blue>{}</>{}]", filled, empty)
+}
+
+pub fn print_experience_bar(character: &Character) {
+    if character.level() < character.experience_level() {
+        cprintln!("<red>Can level up!</>");
+    } else if let Some(next_xp) = character.experience_for_next_level() {
+        cprintln!(
+            "<white>Experience:</> {}",
+            experience_bar(character.experience, next_xp)
+        );
+    } else {
+        cprintln!("<green>Max level reached!</>");
+    }
 }
 
 #[cfg(test)]
@@ -477,20 +488,10 @@ mod tests {
         cli_dungeon_database::init(&pool).await;
 
         // Create
-        let starting_str_bonus = 0;
-        let starting_dex_bonus = 6;
-        let starting_con_bonus = 4;
 
-        let character_info = cli_dungeon_core::character::create_character(
-            &pool,
-            "testington".to_string(),
-            None,
-            starting_str_bonus,
-            starting_dex_bonus,
-            starting_con_bonus,
-        )
-        .await
-        .unwrap();
+        let character_info =
+            cli_dungeon_core::character::create_character(&pool, "testington".to_string(), None)
+                .await;
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
         cli_dungeon_core::character::quest(&pool, &character_info)
             .await
@@ -536,20 +537,9 @@ mod tests {
         cli_dungeon_database::init(&pool).await;
 
         // Create
-        let starting_str_bonus = 0;
-        let starting_dex_bonus = 6;
-        let starting_con_bonus = 4;
-
-        let character_info = cli_dungeon_core::character::create_character(
-            &pool,
-            "testington".to_string(),
-            None,
-            starting_str_bonus,
-            starting_dex_bonus,
-            starting_con_bonus,
-        )
-        .await
-        .unwrap();
+        let character_info =
+            cli_dungeon_core::character::create_character(&pool, "testington".to_string(), None)
+                .await;
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
 
         let starting_character = cli_dungeon_database::get_character(&pool, &character_info.id)
@@ -707,15 +697,15 @@ mod tests {
         assert_eq!(updated_character.level(), Level::new(1));
         assert_eq!(
             updated_character.ability_scores().strength,
-            Strength::new(8 + starting_str_bonus)
+            Strength::new(8)
         );
         assert_eq!(
             updated_character.ability_scores().dexterity,
-            Dexterity::new(8 + starting_dex_bonus + 1)
+            Dexterity::new(8 + 1)
         );
         assert_eq!(
             updated_character.ability_scores().constitution,
-            Constitution::new(8 + starting_con_bonus)
+            Constitution::new(8)
         );
 
         cli_dungeon_core::character::equip_jewelry(
@@ -732,7 +722,7 @@ mod tests {
             vec![JewelryType::RingOfProtection]
         );
 
-        assert_eq!(updated_character.armor_points(), ArmorPoints::new(14));
+        assert_eq!(updated_character.armor_points(), ArmorPoints::new(12));
 
         cli_dungeon_core::character::unequip_jewelry(
             &pool,
@@ -743,7 +733,7 @@ mod tests {
         .unwrap();
         let updated_character = get_character(&pool, &character_info).await.unwrap();
 
-        assert_eq!(updated_character.armor_points(), ArmorPoints::new(13));
+        assert_eq!(updated_character.armor_points(), ArmorPoints::new(11));
 
         // Sell
 

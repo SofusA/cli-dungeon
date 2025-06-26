@@ -186,7 +186,7 @@ pub async fn create_player_character(
         name,
         character_type,
         true,
-        30,
+        0,
         base_ability_scores_serialized,
         *health,
         weapon_inventory_json,

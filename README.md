@@ -53,13 +53,9 @@ cd () {
 ## Basic rules
 Every command has a `--help` flag which gives the up-to-date documentation.
 
-Start by creating a character with `cli-dungeon create-character`.
-You start with some gold. You can spend it with `cli-dungeon shop`.
-
+You can sell and buy items in the shop `cli-dungeon shop`.
 Equip your purchase with `cli-dungeon character equip`.
 See your character's current status with `cli-dungeon character status`.
-
-You are now ready to meet your first enemy!
 
 ## Resting
 You can rest your character with `cli-dungeon character rest long` if you need to silence `cli-dungeon` for a while.

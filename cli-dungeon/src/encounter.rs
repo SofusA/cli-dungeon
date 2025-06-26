@@ -6,7 +6,7 @@ use cli_dungeon_rules::{Encounter, character::Character, items::ActionType};
 use color_print::{cprint, cprintln};
 use rhai::{CustomType, Dynamic, Engine, ImmutableString, Map, Scope, TypeBuilder};
 
-use crate::health_bar;
+use crate::{config_path, health_bar, print_experience_bar};
 
 #[derive(Clone, CustomType)]
 struct EncounterCharacter {
@@ -219,8 +219,7 @@ impl EncounterState {
 }
 
 fn default_encounter_script<'a>() -> &'a str {
-    r#"
-// print(state.available_actions); // List available actions
+    r#"// print(state.available_actions); // List available actions
 // print(state.available_bonus_actions); // List available bonus actions
 
 let enemies = state.enemies;
@@ -271,8 +270,7 @@ fn build_engine() -> Engine {
 
 pub fn ensure_default_script() -> std::path::PathBuf {
     let script_path = {
-        let mut config = dirs::config_dir().unwrap();
-        config.push("cli-dungeon");
+        let mut config = config_path();
         config.push("encounter.rhai");
         config
     };
@@ -319,6 +317,7 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
             "<white>Health:</> {}",
             health_bar(character.current_health, character.max_health())
         );
+        print_experience_bar(&character);
     };
 }
 
@@ -431,7 +430,7 @@ mod tests {
         let monster = Character {
             id: 2,
             name: "monster".to_string(),
-            character_type: CharacterType::Monster(MonsterType::TestMonster),
+            character_type: CharacterType::Monster(MonsterType::Wolf),
             current_health: HealthPoints::new(10),
             base_ability_scores: AbilityScores {
                 strength: Strength::new(8),

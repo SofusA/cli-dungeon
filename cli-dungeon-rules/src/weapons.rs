@@ -105,7 +105,7 @@ impl WeaponType {
                 allow_offhand: true,
                 two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
-                strength_requirement: Strength::new(0),
+                strength_requirement: Strength::new(8),
             },
             WeaponType::Rapier => Weapon {
                 name: self.to_name(),
@@ -120,7 +120,7 @@ impl WeaponType {
                 allow_offhand: true,
                 two_handed: false,
                 armor_bonus: ArmorPoints::new(0),
-                strength_requirement: Strength::new(8),
+                strength_requirement: Strength::new(10),
             },
             WeaponType::Longsword => Weapon {
                 name: self.to_name(),
@@ -180,7 +180,7 @@ impl WeaponType {
                 allow_offhand: true,
                 two_handed: false,
                 armor_bonus: ArmorPoints::new(3),
-                strength_requirement: Strength::new(0),
+                strength_requirement: Strength::new(10),
             },
             WeaponType::MonsterNone => Weapon {
                 name: self.to_name(),

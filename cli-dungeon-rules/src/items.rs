@@ -87,7 +87,7 @@ impl ItemType {
             },
             ItemType::PotionOfHealing => Item {
                 name: self.to_name(),
-                cost: Gold::new(500),
+                cost: Gold::new(100),
                 action: ActionType::BonusAction(ItemAction::Healing(HealingStats {
                     dice: vec![Dice::D4, Dice::D4],
                     bonus: HealthPoints::new(2),

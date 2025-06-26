@@ -13,35 +13,15 @@ use sanitizer::StringSanitizer;
 
 use crate::GameError;
 
-pub async fn create_character(
-    pool: &Pool,
-    name: String,
-    secret: Option<i64>,
-    strength: i16,
-    dexterity: i16,
-    constitution: i16,
-) -> Result<CharacterInfo, GameError> {
-    if strength < 0 || dexterity < 0 || constitution < 0 {
-        return Err(GameError::AbilityNegativeError);
-    }
-
+pub async fn create_character(pool: &Pool, name: String, secret: Option<i64>) -> CharacterInfo {
     let mut instance = StringSanitizer::from(name.as_str());
     instance.alphanumeric();
     let sanitized_name = instance.get();
 
-    if strength + dexterity + constitution != 10 {
-        return Err(GameError::AbilitySumError);
-    }
-    let ability_scores = AbilityScores::new(8 + strength, 8 + dexterity, 8 + constitution);
+    let ability_scores = AbilityScores::new(8, 8, 8);
 
-    let character_info = cli_dungeon_database::create_player_character(
-        pool,
-        &sanitized_name,
-        secret,
-        ability_scores,
-    )
-    .await;
-    Ok(character_info)
+    cli_dungeon_database::create_player_character(pool, &sanitized_name, secret, ability_scores)
+        .await
 }
 
 pub async fn rest(pool: &Pool, character_info: &CharacterInfo) -> Result<(), GameError> {
@@ -316,12 +296,12 @@ pub(crate) async fn validate_player(
 mod tests {
     use cli_dungeon_rules::{
         monsters::MonsterType,
-        types::{HealthPoints, QuestPoint},
+        types::{Experience, HealthPoints, QuestPoint},
         weapons::WeaponType,
     };
 
     use crate::{
-        character::{self, create_character, equip_main_hand, equip_offhand, short_rest},
+        character::{self, create_character, equip_main_hand, equip_offhand, levelup, short_rest},
         errors::GameError,
         play,
     };
@@ -330,16 +310,14 @@ mod tests {
     async fn can_short_rest(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
-            .await
-            .unwrap();
+        let character_info = create_character(&pool, "testington".to_string(), None).await;
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
 
         let character = cli_dungeon_database::get_character(&pool, &character_info.id)
             .await
             .unwrap();
 
-        let set_health = HealthPoints::new(5);
+        let set_health = HealthPoints::new(1);
         cli_dungeon_database::set_character_health(&pool, &character.id, set_health).await;
 
         short_rest(&pool, &character_info).await.unwrap();
@@ -369,9 +347,7 @@ mod tests {
     async fn questing_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), None, 0, 6, 4)
-            .await
-            .unwrap();
+        let character_info = create_character(&pool, "testington".to_string(), None).await;
         cli_dungeon_database::set_active_character(&pool, &character_info).await;
 
         let character = cli_dungeon_database::get_character(&pool, &character_info.id)
@@ -383,7 +359,7 @@ mod tests {
 
         let enemy_party_id = cli_dungeon_database::create_party(&pool).await;
 
-        let enemy = MonsterType::TestMonsterWithDagger;
+        let enemy = MonsterType::TestMonster;
 
         let enemy_id = cli_dungeon_database::create_monster(&pool, enemy, enemy_party_id)
             .await
@@ -418,10 +394,25 @@ mod tests {
     async fn two_handed_weapon_works(pool: sqlx::Pool<sqlx::Sqlite>) {
         cli_dungeon_database::init(&pool).await;
 
-        let character_info = create_character(&pool, "testington".to_string(), None, 10, 0, 0)
+        let character_info = create_character(&pool, "testington".to_string(), None).await;
+        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+        cli_dungeon_database::set_character_experience(
+            &pool,
+            &character_info.id,
+            Experience::new(999999),
+        )
+        .await;
+
+        for _ in 0..7 {
+            levelup(
+                &pool,
+                &character_info,
+                "fighter".to_string(),
+                "strength".to_string(),
+            )
             .await
             .unwrap();
-        cli_dungeon_database::set_active_character(&pool, &character_info).await;
+        }
 
         cli_dungeon_database::add_weapon_to_inventory(
             &pool,
