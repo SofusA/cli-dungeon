@@ -47,14 +47,14 @@ impl ArmorType {
         match self {
             ArmorType::Leather => Armor {
                 name: self.to_name(),
-                cost: Gold::new(30),
+                cost: Gold::new(50),
                 armor_bonus: ArmorPoints::new(1),
                 max_dexterity_bonus: AbilityScoreBonus::new(6),
                 strength_requirement: Strength::new(8),
             },
             ArmorType::StudedLeather => Armor {
                 name: self.to_name(),
-                cost: Gold::new(150),
+                cost: Gold::new(200),
                 armor_bonus: ArmorPoints::new(2),
                 max_dexterity_bonus: AbilityScoreBonus::new(6),
                 strength_requirement: Strength::new(8),

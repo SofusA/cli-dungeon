@@ -7,7 +7,7 @@ use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
     character::Character,
     classes::ClassType,
-    types::{Experience, HealthPoints},
+    types::{Experience, HealthPoints, QuestPoint},
 };
 use color_print::{cformat, cprintln};
 use config::Config;
@@ -208,6 +208,7 @@ async fn main() -> Result<()> {
                 cprintln!("<blue>Name: {}</>", character.name);
 
                 print_experience_bar(&character);
+                cprintln!("<white>Quest:</> {}", quest_bar(character.quest_points));
 
                 cprintln!("<yellow>Gold: {}</>", character.gold);
                 cprintln!(
@@ -443,6 +444,23 @@ pub fn health_bar(current_health: HealthPoints, max_health: HealthPoints) -> Str
     cformat!("[<red>{}</>{}]", filled, empty)
 }
 
+fn quest_bar(current_quest: QuestPoint) -> String {
+    let total_slots = 10;
+
+    let mut filled_slots = ((*current_quest as f32 / 100f32) * total_slots as f32).round() as usize;
+
+    if filled_slots > 10 {
+        filled_slots = 10
+    };
+
+    let empty_slots = total_slots - filled_slots;
+
+    let filled = "■".repeat(filled_slots);
+    let empty = "─".repeat(empty_slots);
+
+    cformat!("[<cyan>{}</>{}]", filled, empty)
+}
+
 fn experience_bar(current_xp: Experience, needed_xp: Experience) -> String {
     let total_slots = 10;
     let filled_slots =
@@ -656,7 +674,7 @@ mod tests {
         );
         assert_eq!(updated_character.item_inventory, vec![ItemType::Stone]);
 
-        for _ in 0..10 {
+        for _ in 0..50 {
             cli_dungeon_core::character::rest(&pool, &character_info)
                 .await
                 .unwrap();

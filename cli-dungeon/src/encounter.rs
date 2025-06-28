@@ -310,9 +310,6 @@ pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo
     }
 
     if let Ok(character) = cli_dungeon_core::character::get_character(pool, character_info).await {
-        if character.level() < character.experience_level() {
-            cprintln!("<red>Can level up!</>");
-        }
         cprintln!(
             "<white>Health:</> {}",
             health_bar(character.current_health, character.max_health())

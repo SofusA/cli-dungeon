@@ -47,7 +47,7 @@ pub struct Character {
 }
 
 const EXPERIENCE_THRESHOLDS: [u32; 12] = [
-    100, 600, 2000, 6500, 8500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
+    400, 1500, 3000, 6500, 8500, 14000, 23000, 34000, 48000, 64000, 85000, 100000,
 ];
 
 pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {

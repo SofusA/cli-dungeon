@@ -30,7 +30,7 @@ pub async fn play(
     let character = get_character(pool, character_info).await?;
 
     if matches!(character.status, Status::Questing)
-        && character.quest_points == QuestPoint::new(300)
+        && character.quest_points >= QuestPoint::new(100)
     {
         let Loot {
             weapons,
