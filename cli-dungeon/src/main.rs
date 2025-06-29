@@ -121,11 +121,7 @@ pub fn config_path() -> PathBuf {
     config
 }
 
-async fn get_character(pool: &Pool) -> CharacterInfo {
-    if let Ok(character_info) = cli_dungeon_database::get_active_character(pool).await {
-        return character_info;
-    }
-
+async fn create_character(pool: &Pool) -> CharacterInfo {
     let settings = Config::builder()
         .add_source(config::File::new(
             &config_path().into_os_string().into_string().unwrap(),
@@ -145,6 +141,13 @@ async fn get_character(pool: &Pool) -> CharacterInfo {
     character_info
 }
 
+async fn get_character(pool: &Pool) -> CharacterInfo {
+    if let Ok(character_info) = cli_dungeon_database::get_active_character(pool).await {
+        return character_info;
+    }
+    create_character(pool).await
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
@@ -153,7 +156,7 @@ async fn main() -> Result<()> {
 
     match args.command {
         Commands::CreateCharacter => {
-            get_character(&pool).await;
+            create_character(&pool).await;
         }
         Commands::Character { command } => match command {
             CharacterCommands::Rest { command } => {
