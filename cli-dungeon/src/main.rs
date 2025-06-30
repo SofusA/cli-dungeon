@@ -127,11 +127,18 @@ async fn create_character(pool: &Pool) -> CharacterInfo {
             &config_path().into_os_string().into_string().unwrap(),
             config::FileFormat::Toml,
         ))
-        .build()
-        .unwrap();
+        .build();
 
-    let name = settings.get_string("name").unwrap_or(whoami::username());
-    let secret = settings.get_int("secret").ok();
+    let (name, secret) = settings
+        .map(|settings| {
+            (
+                settings.get_string("name").ok(),
+                settings.get_int("secret").ok(),
+            )
+        })
+        .unwrap_or((None, None));
+
+    let name = name.unwrap_or(whoami::username());
 
     encounter::ensure_default_script();
 
