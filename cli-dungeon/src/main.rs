@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use cli_dungeon_core::play;
+use cli_dungeon_core::{errors::GameError, play};
 use cli_dungeon_database::{CharacterInfo, Pool};
 use cli_dungeon_rules::{
     character::Character,
@@ -149,10 +149,19 @@ async fn create_character(pool: &Pool) -> CharacterInfo {
 }
 
 async fn get_character(pool: &Pool) -> CharacterInfo {
-    if let Ok(character_info) = cli_dungeon_database::get_active_character(pool).await {
-        return character_info;
+    let character_info = cli_dungeon_database::get_active_character(pool)
+        .await
+        .unwrap();
+
+    let character = cli_dungeon_core::character::get_character(pool, &character_info).await;
+
+    if let Err(error) = character
+        && matches!(error, GameError::Dead)
+    {
+        return create_character(pool).await;
     }
-    create_character(pool).await
+
+    character_info
 }
 
 #[tokio::main]
@@ -287,6 +296,7 @@ async fn main() -> Result<()> {
                 jewelry,
             } => {
                 let character_info = get_character(&pool).await;
+
                 if let Some(main_hand) = main_hand {
                     cli_dungeon_core::character::equip_main_hand(&pool, &character_info, main_hand)
                         .await?;
