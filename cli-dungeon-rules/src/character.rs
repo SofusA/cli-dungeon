@@ -55,6 +55,18 @@ pub fn max_health(constitution: &Constitution, level: Level) -> HealthPoints {
     HealthPoints::new(health)
 }
 
+fn roll_damage_dice(attack_stats: &AttackStats) -> i16 {
+    attack_stats.attack_dice.iter().map(roll).sum::<i16>()
+}
+
+fn critical_attack(attack_stats: &AttackStats) -> HealthPoints {
+    HealthPoints::new(
+        roll_damage_dice(attack_stats)
+            + roll_damage_dice(attack_stats)
+            + *attack_stats.attack_bonus,
+    )
+}
+
 fn attack(attack_stats: &AttackStats) -> HealthPoints {
     let damage =
         attack_stats.attack_dice.iter().map(roll).sum::<i16>() + *attack_stats.attack_bonus;
@@ -290,7 +302,7 @@ impl Character {
     }
 
     pub fn max_health(&self) -> HealthPoints {
-        max_health(&self.ability_scores().constitution, self.level())
+        max_health(&self.ability_scores().constitution, self.experience_level())
     }
 
     pub fn spell_stats(&self, spell_stats: WeaponAttackStats) -> AttackStats {
@@ -317,19 +329,20 @@ impl Character {
     }
 
     pub fn attack_stats(&self, weapon_type: CharacterWeapon) -> AttackStats {
-        let dex = &self.ability_scores().dexterity;
-        let str = &self.ability_scores().strength;
+        let ability_scores = self.ability_scores();
+        let dex = &ability_scores.dexterity;
+        let str = &ability_scores.strength;
 
         let weapon = match &weapon_type {
             CharacterWeapon::Mainhand => self
                 .equipped_weapon
                 .map(|weapon| weapon.to_weapon())
-                .filter(|weapon| &weapon.strength_requirement < str)
+                .filter(|weapon| &weapon.strength_requirement <= str)
                 .map(|weapon| weapon.attack_stats),
             CharacterWeapon::Offhand => self
                 .equipped_offhand
                 .map(|weapon| weapon.to_weapon())
-                .filter(|weapon| &weapon.strength_requirement < str)
+                .filter(|weapon| &weapon.strength_requirement <= str)
                 .map(|weapon| weapon.attack_stats),
             CharacterWeapon::Thrown(weapon_attack_stats) => Some(weapon_attack_stats).cloned(),
         };
@@ -428,9 +441,9 @@ impl Character {
             return None;
         }
 
-        if hit > *self.armor_points() || critical_hit {
+        if hit >= *self.armor_points() || critical_hit {
             let mut damage = match critical_hit {
-                true => attack(attack_stats) + attack(attack_stats),
+                true => critical_attack(attack_stats),
                 false => attack(attack_stats),
             };
 
