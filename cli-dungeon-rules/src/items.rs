@@ -1,9 +1,10 @@
 use crate::{
     Dice,
     abilities::AbilityScaling,
-    roll,
+    conditions::{ActiveCondition, ConditionType},
+    normalize_name, roll,
     spells::{SpellAction, SpellType},
-    types::{AbilityScoreBonus, Gold, HealthPoints},
+    types::{AbilityScoreBonus, Gold, HealthPoints, Turn},
     weapons::WeaponAttackStats,
 };
 
@@ -13,7 +14,15 @@ use crate::{
 pub enum ItemType {
     Stone,
     ScrollOfWeaken,
+    ScrollOfCripple,
+    ScrollOfPoison,
+    ScrollOfIceShard,
+    ScrollOfFirebolt,
     PotionOfHealing,
+    PotionOfStrength,
+    PotionOfAgility,
+    PotionOfFortitude,
+    FireBomb,
 }
 
 pub enum ActionType {
@@ -48,21 +57,37 @@ pub enum ItemAction {
 
 impl ItemType {
     fn to_name(self) -> String {
-        serde_json::to_string(&self)
-            .unwrap()
-            .strip_prefix("\"")
-            .unwrap()
-            .strip_suffix("\"")
-            .unwrap()
-            .to_string()
+        match self {
+            ItemType::Stone => "Stone",
+            ItemType::ScrollOfWeaken => "Scroll of Weaken",
+            ItemType::ScrollOfCripple => "Scroll of Cripple",
+            ItemType::ScrollOfPoison => "Scroll of Poison",
+            ItemType::ScrollOfIceShard => "Scroll of Ice Shard",
+            ItemType::ScrollOfFirebolt => "Scroll of Firebolt",
+            ItemType::PotionOfHealing => "Potion of healing",
+            ItemType::PotionOfStrength => "Potion of Strength",
+            ItemType::PotionOfAgility => "Potion of Agility",
+            ItemType::PotionOfFortitude => "Potion of Fortitude",
+            ItemType::FireBomb => "Fire bomb",
+        }
+        .to_string()
     }
 
     pub fn from_item_str(string: &str) -> Option<Self> {
-        let string = string.to_lowercase();
-        match string.as_str() {
+        let normalized = normalize_name(string);
+
+        match normalized.as_str() {
             "stone" => Some(Self::Stone),
-            "scroll of weaken" => Some(Self::ScrollOfWeaken),
-            "minor healing potion" => Some(Self::PotionOfHealing),
+            "scrollofweaken" => Some(Self::ScrollOfWeaken),
+            "scrollofcripple" => Some(Self::ScrollOfCripple),
+            "scrollofpoison" => Some(Self::ScrollOfPoison),
+            "scrolloficeshard" => Some(Self::ScrollOfIceShard),
+            "scrolloffirebolt" => Some(Self::ScrollOfFirebolt),
+            "potionofhealing" => Some(Self::PotionOfHealing),
+            "potionofstrength" => Some(Self::PotionOfStrength),
+            "potionofagility" => Some(Self::PotionOfAgility),
+            "potionoffortitude" => Some(Self::PotionOfFortitude),
+            "firebomb" => Some(Self::FireBomb),
             _ => None,
         }
     }
@@ -78,12 +103,33 @@ impl ItemType {
                     attack_dices: vec![Dice::D4],
                     versatile_attack_dices: None,
                     attack_bonus: AbilityScoreBonus::new(0),
+                    condition_on_hit: None,
                 })),
             },
             ItemType::ScrollOfWeaken => Item {
                 name: self.to_name(),
-                cost: Gold::new(1000),
+                cost: Gold::new(250),
                 action: ActionType::Action(ItemAction::Spell(SpellType::Weaken.spell_action())),
+            },
+            ItemType::ScrollOfCripple => Item {
+                name: self.to_name(),
+                cost: Gold::new(300),
+                action: ActionType::Action(ItemAction::Spell(SpellType::Cripple.spell_action())),
+            },
+            ItemType::ScrollOfPoison => Item {
+                name: self.to_name(),
+                cost: Gold::new(350),
+                action: ActionType::Action(ItemAction::Spell(SpellType::Poison.spell_action())),
+            },
+            ItemType::ScrollOfIceShard => Item {
+                name: self.to_name(),
+                cost: Gold::new(400),
+                action: ActionType::Action(ItemAction::Spell(SpellType::IceShard.spell_action())),
+            },
+            ItemType::ScrollOfFirebolt => Item {
+                name: self.to_name(),
+                cost: Gold::new(400),
+                action: ActionType::Action(ItemAction::Spell(SpellType::Firebolt.spell_action())),
             },
             ItemType::PotionOfHealing => Item {
                 name: self.to_name(),
@@ -91,6 +137,42 @@ impl ItemType {
                 action: ActionType::BonusAction(ItemAction::Healing(HealingStats {
                     dice: vec![Dice::D4, Dice::D4],
                     bonus: HealthPoints::new(2),
+                })),
+            },
+            ItemType::PotionOfStrength => Item {
+                name: self.to_name(),
+                cost: Gold::new(250),
+                action: ActionType::BonusAction(ItemAction::Spell(
+                    SpellType::Strength.spell_action(),
+                )),
+            },
+            ItemType::PotionOfAgility => Item {
+                name: self.to_name(),
+                cost: Gold::new(250),
+                action: ActionType::BonusAction(ItemAction::Spell(
+                    SpellType::Agility.spell_action(),
+                )),
+            },
+            ItemType::PotionOfFortitude => Item {
+                name: self.to_name(),
+                cost: Gold::new(300),
+                action: ActionType::BonusAction(ItemAction::Spell(
+                    SpellType::Fortify.spell_action(),
+                )),
+            },
+            ItemType::FireBomb => Item {
+                name: self.to_name(),
+                cost: Gold::new(150),
+                action: ActionType::Action(ItemAction::Projectile(WeaponAttackStats {
+                    primary_ability: AbilityScaling::Dexterity,
+                    hit_bonus: AbilityScoreBonus::new(0),
+                    attack_dices: vec![Dice::D6, Dice::D6],
+                    versatile_attack_dices: None,
+                    attack_bonus: AbilityScoreBonus::new(0),
+                    condition_on_hit: Some(ActiveCondition {
+                        remaining_turns: Some(Turn::new(2)),
+                        condition_type: ConditionType::Burning,
+                    }),
                 })),
             },
         }

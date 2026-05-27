@@ -1,12 +1,14 @@
-use crate::types::{AbilityScoreBonus, ArmorPoints, Gold, Strength};
+use crate::{
+    normalize_name,
+    types::{AbilityScoreBonus, ArmorPoints, Gold, Strength},
+};
 
 #[derive(
     Debug, Clone, Copy, serde::Deserialize, serde::Serialize, PartialEq, Eq, PartialOrd, Ord,
 )]
 pub enum ArmorType {
     Leather,
-    StudedLeather,
-    ChainShirt,
+    StuddedLeather,
     BreastPlate,
     HalfPlate,
     ChainMail,
@@ -24,20 +26,26 @@ pub struct Armor {
 
 impl ArmorType {
     fn to_name(self) -> String {
-        serde_json::to_string(&self)
-            .unwrap()
-            .strip_prefix("\"")
-            .unwrap()
-            .strip_suffix("\"")
-            .unwrap()
-            .to_string()
+        match self {
+            ArmorType::Leather => "Leather",
+            ArmorType::StuddedLeather => "Studded Leather",
+            ArmorType::BreastPlate => "Breastplate",
+            ArmorType::HalfPlate => "Half Plate",
+            ArmorType::ChainMail => "Chain Mail",
+            ArmorType::Splint => "Splint",
+        }
+        .to_string()
     }
 
     pub fn from_armor_str(string: &str) -> Option<Self> {
-        let string = string.to_lowercase();
-        match string.as_str() {
+        let normalized = normalize_name(string);
+
+        match normalized.as_str() {
             "leather" => Some(Self::Leather),
-            "chainmail" => Some(Self::BreastPlate),
+            "studdedleather" | "studedleather" => Some(Self::StuddedLeather),
+            "breastplate" => Some(Self::BreastPlate),
+            "halfplate" => Some(Self::HalfPlate),
+            "chainmail" => Some(Self::ChainMail),
             "splint" => Some(Self::Splint),
             _ => None,
         }
@@ -52,18 +60,11 @@ impl ArmorType {
                 max_dexterity_bonus: AbilityScoreBonus::new(6),
                 strength_requirement: Strength::new(8),
             },
-            ArmorType::StudedLeather => Armor {
+            ArmorType::StuddedLeather => Armor {
                 name: self.to_name(),
                 cost: Gold::new(200),
                 armor_bonus: ArmorPoints::new(2),
                 max_dexterity_bonus: AbilityScoreBonus::new(6),
-                strength_requirement: Strength::new(8),
-            },
-            ArmorType::ChainShirt => Armor {
-                name: self.to_name(),
-                cost: Gold::new(100),
-                armor_bonus: ArmorPoints::new(3),
-                max_dexterity_bonus: AbilityScoreBonus::new(2),
                 strength_requirement: Strength::new(8),
             },
             ArmorType::BreastPlate => Armor {
@@ -77,20 +78,20 @@ impl ArmorType {
                 name: self.to_name(),
                 cost: Gold::new(250),
                 armor_bonus: ArmorPoints::new(5),
-                max_dexterity_bonus: AbilityScoreBonus::new(2),
+                max_dexterity_bonus: AbilityScoreBonus::new(1),
                 strength_requirement: Strength::new(12),
             },
             ArmorType::ChainMail => Armor {
                 name: self.to_name(),
                 cost: Gold::new(150),
                 armor_bonus: ArmorPoints::new(6),
-                max_dexterity_bonus: AbilityScoreBonus::new(2),
+                max_dexterity_bonus: AbilityScoreBonus::new(0),
                 strength_requirement: Strength::new(14),
             },
             ArmorType::Splint => Armor {
                 name: self.to_name(),
-                cost: Gold::new(200),
-                armor_bonus: ArmorPoints::new(5),
+                cost: Gold::new(300),
+                armor_bonus: ArmorPoints::new(7),
                 max_dexterity_bonus: AbilityScoreBonus::new(0),
                 strength_requirement: Strength::new(16),
             },

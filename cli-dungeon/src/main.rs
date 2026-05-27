@@ -39,7 +39,7 @@ enum Commands {
         command: ShopCommands,
     },
 
-    // Play the game
+    /// Play the game
     Play {
         #[arg(short, long, default_value_t = false)]
         /// Force a battle
@@ -526,7 +526,6 @@ mod tests {
         cli_dungeon_database::init(&pool).await;
 
         // Create
-
         let character_info =
             cli_dungeon_core::character::create_character(&pool, "testington".to_string(), None)
                 .await;

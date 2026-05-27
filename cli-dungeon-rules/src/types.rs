@@ -71,6 +71,7 @@ wrapped_type!(QuestPoint, u16);
 ability_wrapped_type!(Strength);
 ability_wrapped_type!(Dexterity);
 ability_wrapped_type!(Constitution);
+ability_wrapped_type!(Wisdom);
 
 impl AbilityScore {
     pub fn ability_score_bonus(&self) -> AbilityScoreBonus {

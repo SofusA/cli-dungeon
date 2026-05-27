@@ -7,10 +7,10 @@ use crate::{
     items::{ActionType, ItemAction, ItemType},
     jewelry::JewelryType,
     monsters::MonsterType,
-    roll,
+    normalize_name, roll,
     types::{
         AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold, HealthPoints,
-        Level, QuestPoint, Strength,
+        Level, QuestPoint, Strength, Wisdom,
     },
     weapons::{WeaponAttackStats, WeaponType},
 };
@@ -21,7 +21,7 @@ pub enum CharacterType {
     Monster(MonsterType),
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Character {
     pub id: i64,
     pub name: String,
@@ -120,6 +120,23 @@ pub struct AvailableBonusActionDefinition {
 }
 
 impl Character {
+    fn ability_bonus_for_scaling(&self, scaling: AbilityScaling) -> AbilityScoreBonus {
+        let scores = self.ability_scores();
+
+        match scaling {
+            AbilityScaling::Strength => scores.strength.ability_score_bonus(),
+            AbilityScaling::Dexterity => scores.dexterity.ability_score_bonus(),
+            AbilityScaling::Versatile => {
+                if *scores.dexterity < *scores.strength {
+                    scores.strength.ability_score_bonus()
+                } else {
+                    scores.dexterity.ability_score_bonus()
+                }
+            }
+            AbilityScaling::Wisdom => AbilityScoreBonus::new(0), // TODO: Add wisdom to character
+        }
+    }
+
     pub fn ability_scores(&self) -> AbilityScores {
         let base_ability_scores = &self.base_ability_scores;
 
@@ -142,7 +159,9 @@ impl Character {
             self.equipped_jewelry
                 .iter()
                 .map(|j| j.to_jewelry())
-                .map(|j| **j.strength_bonus)
+                .flat_map(|j| j.condition)
+                .map(|c| c.strength_bonus.unwrap_or(Strength::new(0)))
+                .map(|c| **c)
                 .sum(),
         );
 
@@ -165,7 +184,9 @@ impl Character {
             self.equipped_jewelry
                 .iter()
                 .map(|j| j.to_jewelry())
-                .map(|j| **j.dexterity_bonus)
+                .flat_map(|j| j.condition)
+                .map(|c| c.dexterity_bonus.unwrap_or(Dexterity::new(0)))
+                .map(|c| **c)
                 .sum(),
         );
 
@@ -173,6 +194,13 @@ impl Character {
             self.level_up_choices
                 .iter()
                 .filter(|choice| choice.ability_increment == AbilityType::Constitution)
+                .count() as i16,
+        );
+
+        let wisdom_level_bonus = Wisdom::new(
+            self.level_up_choices
+                .iter()
+                .filter(|choice| choice.ability_increment == AbilityType::Wisdom)
                 .count() as i16,
         );
 
@@ -184,11 +212,31 @@ impl Character {
                 .sum(),
         );
 
+        let wisdom_condition_bonus = Wisdom::new(
+            self.active_conditions
+                .iter()
+                .flat_map(|condition| condition.condition_type.to_condition().wisdom_bonus)
+                .map(|wisdom| **wisdom)
+                .sum(),
+        );
+
         let constitution_jewelry_bonus = Constitution::new(
             self.equipped_jewelry
                 .iter()
                 .map(|j| j.to_jewelry())
-                .map(|j| **j.constitution_bonus)
+                .flat_map(|j| j.condition)
+                .map(|c| c.constitution_bonus.unwrap_or(Constitution::new(0)))
+                .map(|c| **c)
+                .sum(),
+        );
+
+        let wisdom_jewelry_bonus = Wisdom::new(
+            self.equipped_jewelry
+                .iter()
+                .map(|j| j.to_jewelry())
+                .flat_map(|j| j.condition)
+                .map(|c| c.wisdom_bonus.unwrap_or(Wisdom::new(0)))
+                .map(|c| **c)
                 .sum(),
         );
 
@@ -205,7 +253,19 @@ impl Character {
                 + constitution_level_bonus
                 + constitution_condition_bonus
                 + constitution_jewelry_bonus,
+            wisdom: base_ability_scores.wisdom
+                + wisdom_level_bonus
+                + wisdom_condition_bonus
+                + wisdom_jewelry_bonus,
         }
+    }
+
+    pub fn can_equip_weapon(&self, weapon: WeaponType) -> bool {
+        **self.ability_scores().strength >= **weapon.to_weapon().strength_requirement
+    }
+
+    pub fn can_equip_armor(&self, armor: ArmorType) -> bool {
+        **self.ability_scores().strength >= **armor.to_armor().strength_requirement
     }
 
     pub fn healing_potion(&self) -> Option<ItemType> {
@@ -229,7 +289,7 @@ impl Character {
                 ItemAction::Healing(_) => (item.0, item.1, false),
             })
             .map(|item| AvailableActionDefinition {
-                name: item.0.to_item().name,
+                name: normalize_name(&item.0.to_item().name),
                 action: AvailableAction::Item(*item.0),
                 requires_target: item.2,
             })
@@ -258,7 +318,7 @@ impl Character {
                 ItemAction::Healing(_) => (item.0, item.1, false),
             })
             .map(|item| AvailableBonusActionDefinition {
-                name: item.0.to_item().name,
+                name: normalize_name(&item.0.to_item().name),
                 action: AvailableAction::Item(*item.0),
                 requires_target: item.2,
             })
@@ -306,18 +366,7 @@ impl Character {
     }
 
     pub fn spell_stats(&self, spell_stats: WeaponAttackStats) -> AttackStats {
-        let dex = &self.ability_scores().dexterity;
-        let str = &self.ability_scores().strength;
-
-        let ability_bonus = match spell_stats.primary_ability {
-            AbilityScaling::Strength => str.ability_score_bonus(),
-            AbilityScaling::Dexterity => dex.ability_score_bonus(),
-            AbilityScaling::Versatile => match **dex < **str {
-                true => str.ability_score_bonus(),
-                false => dex.ability_score_bonus(),
-            },
-            AbilityScaling::Wisdom => AbilityScoreBonus::new(0),
-        };
+        let ability_bonus = self.ability_bonus_for_scaling(spell_stats.primary_ability);
 
         let attack_dice = spell_stats.attack_dices;
 
@@ -325,6 +374,7 @@ impl Character {
             attack_dice,
             attack_bonus: ability_bonus + spell_stats.attack_bonus,
             hit_bonus: ability_bonus,
+            condition_on_hit: spell_stats.condition_on_hit,
         }
     }
 
@@ -356,22 +406,11 @@ impl Character {
                 attack_dice: vec![Dice::D4],
                 attack_bonus: ability_bonus,
                 hit_bonus: ability_bonus,
+                condition_on_hit: None,
             };
         };
 
-        let ability_bonus = match weapon_type {
-            CharacterWeapon::Mainhand => match weapon.primary_ability {
-                AbilityScaling::Strength => str.ability_score_bonus(),
-                AbilityScaling::Dexterity => dex.ability_score_bonus(),
-                AbilityScaling::Versatile => match **dex < **str {
-                    true => str.ability_score_bonus(),
-                    false => dex.ability_score_bonus(),
-                },
-                AbilityScaling::Wisdom => AbilityScoreBonus::new(0),
-            },
-            CharacterWeapon::Offhand => AbilityScoreBonus::new(0),
-            CharacterWeapon::Thrown(_) => str.ability_score_bonus(),
-        };
+        let ability_bonus = self.ability_bonus_for_scaling(weapon.primary_ability);
 
         let attack_dice = if self.equipped_offhand.is_none() {
             weapon.versatile_attack_dices.unwrap_or(weapon.attack_dices)
@@ -382,7 +421,8 @@ impl Character {
         AttackStats {
             attack_dice,
             attack_bonus: ability_bonus + weapon.attack_bonus,
-            hit_bonus: ability_bonus,
+            hit_bonus: ability_bonus + weapon.hit_bonus,
+            condition_on_hit: weapon.condition_on_hit,
         }
     }
 
@@ -423,8 +463,9 @@ impl Character {
         let jewelry_bonus = ArmorPoints::new(
             self.equipped_jewelry
                 .iter()
-                .map(|x| x.to_jewelry().armor_bonus)
-                .map(|x| *x)
+                .flat_map(|x| x.to_jewelry().condition)
+                .map(|c| c.armor_bonus.unwrap_or(ArmorPoints::new(0)))
+                .map(|c| *c)
                 .sum(),
         );
 
@@ -476,11 +517,12 @@ mod tests {
             AvailableAction, AvailableActionDefinition, AvailableBonusActionDefinition, Character,
             CharacterType, CharacterWeapon,
         },
+        conditions::{ActiveCondition, ConditionType},
         items::ItemType,
-        spells::SpellType,
+        normalize_name,
         types::{
             AbilityScoreBonus, ArmorPoints, Constitution, Dexterity, Experience, Gold,
-            HealthPoints, QuestPoint, Strength,
+            HealthPoints, QuestPoint, Strength, Turn, Wisdom,
         },
         weapons::WeaponType,
     };
@@ -497,6 +539,7 @@ mod tests {
                 strength,
                 dexterity: Dexterity::new(8),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -513,19 +556,15 @@ mod tests {
             party: 1,
             quest_points: QuestPoint::new(0),
             short_rests_available: 2,
-            active_conditions: vec![SpellType::Weaken.active_condition().unwrap()],
+            active_conditions: vec![ActiveCondition {
+                remaining_turns: Some(Turn::new(2)),
+                condition_type: ConditionType::Weaken,
+            }],
         };
 
         assert_eq!(
             character.ability_scores().strength,
-            strength
-                + SpellType::Weaken
-                    .active_condition()
-                    .unwrap()
-                    .condition_type
-                    .to_condition()
-                    .strength_bonus
-                    .unwrap()
+            strength + ConditionType::Weaken.to_condition().strength_bonus.unwrap()
         )
     }
 
@@ -543,6 +582,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(8),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -569,13 +609,13 @@ mod tests {
             actual_actions,
             vec![
                 AvailableActionDefinition {
-                    name: "attack".to_string(),
-                    action: AvailableAction::Attack,
+                    name: normalize_name(&scroll_of_weaken.to_item().name),
+                    action: AvailableAction::Item(scroll_of_weaken),
                     requires_target: true
                 },
                 AvailableActionDefinition {
-                    name: scroll_of_weaken.to_item().name,
-                    action: AvailableAction::Item(scroll_of_weaken),
+                    name: "attack".to_string(),
+                    action: AvailableAction::Attack,
                     requires_target: true
                 },
             ]
@@ -588,14 +628,14 @@ mod tests {
             actual_bonus_actions,
             vec![
                 AvailableBonusActionDefinition {
+                    name: normalize_name(&healing_potion.to_item().name),
+                    action: AvailableAction::Item(healing_potion),
+                    requires_target: false
+                },
+                AvailableBonusActionDefinition {
                     name: "attack".to_string(),
                     action: AvailableAction::Attack,
                     requires_target: true
-                },
-                AvailableBonusActionDefinition {
-                    name: healing_potion.to_item().name,
-                    action: AvailableAction::Item(healing_potion),
-                    requires_target: false
                 },
             ]
         )
@@ -612,6 +652,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(8),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -654,6 +695,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -698,6 +740,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -731,6 +774,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -764,6 +808,7 @@ mod tests {
                 strength: Strength::new(14),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -806,6 +851,7 @@ mod tests {
                 strength: Strength::new(14),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -844,6 +890,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(12),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),

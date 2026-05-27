@@ -18,7 +18,7 @@ pub async fn create_character(pool: &Pool, name: String, secret: Option<i64>) ->
     instance.alphanumeric();
     let sanitized_name = instance.get();
 
-    let ability_scores = AbilityScores::new(8, 8, 8);
+    let ability_scores = AbilityScores::new(8, 8, 8, 8);
 
     cli_dungeon_database::create_player_character(pool, &sanitized_name, secret, ability_scores)
         .await
@@ -119,7 +119,7 @@ pub async fn equip_main_hand(
         .is_some_and(|weapon| weapon == parsed_weapon);
     let expected_count = if in_offhand { 2 } else { 1 };
 
-    if **character.ability_scores().strength < **weapon_stats.strength_requirement {
+    if !character.can_equip_weapon(parsed_weapon) {
         return Err(GameError::InsufficientStrength);
     }
 
@@ -223,7 +223,7 @@ pub async fn equip_offhand(
         .is_some_and(|weapon| weapon == parsed_weapon);
     let expected_count = if in_main_hand { 2 } else { 1 };
 
-    if **character.ability_scores().strength < **weapon_stats.strength_requirement {
+    if !character.can_equip_weapon(parsed_weapon) {
         return Err(GameError::InsufficientStrength);
     }
 
@@ -260,7 +260,6 @@ pub async fn equip_armor(
 
     validate_player(pool, character_info).await?;
 
-    let armor_stats = parsed_armor.to_armor();
     let character = cli_dungeon_database::get_character(pool, &character_info.id).await?;
 
     let in_inventory = character
@@ -273,7 +272,7 @@ pub async fn equip_armor(
         return Err(GameError::ArmorNotInInventory);
     }
 
-    if **character.ability_scores().strength < **armor_stats.strength_requirement {
+    if !character.can_equip_armor(parsed_armor) {
         return Err(GameError::InsufficientStrength);
     }
 
@@ -282,10 +281,7 @@ pub async fn equip_armor(
     Ok(())
 }
 
-pub(crate) async fn validate_player(
-    pool: &Pool,
-    character_info: &CharacterInfo,
-) -> Result<(), GameError> {
+pub async fn validate_player(pool: &Pool, character_info: &CharacterInfo) -> Result<(), GameError> {
     if !cli_dungeon_database::validate_player(pool, character_info).await? {
         return Err(GameError::Dead);
     };

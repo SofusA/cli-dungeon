@@ -1,9 +1,11 @@
-use crate::abilities::AbilityType;
+use crate::{abilities::AbilityType, normalize_name};
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
 pub enum ClassType {
     Monster,
     Fighter,
+    Rogue,
+    Wizard,
 }
 
 #[derive(Debug, Clone, Copy, serde::Deserialize, serde::Serialize)]
@@ -24,7 +26,7 @@ impl ClassType {
     }
 
     pub fn from_class_str(string: &str) -> Option<Self> {
-        let string = string.to_lowercase();
+        let string = normalize_name(string);
         match string.as_str() {
             "fighter" => Some(Self::Fighter),
             _ => None,

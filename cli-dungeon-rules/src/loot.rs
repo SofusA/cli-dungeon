@@ -61,7 +61,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D8),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -90,7 +90,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -118,7 +118,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -146,7 +146,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -174,7 +174,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -202,7 +202,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -230,7 +230,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -258,7 +258,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -286,7 +286,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![
@@ -314,7 +314,7 @@ fn loot_catalogue() -> Vec<LootChances> {
             armor: vec![
                 (ArmorType::Leather, Dice::D12),
                 (ArmorType::BreastPlate, Dice::D8),
-                (ArmorType::StudedLeather, Dice::D8),
+                (ArmorType::StuddedLeather, Dice::D8),
                 (ArmorType::Splint, Dice::D8),
             ],
             items: vec![

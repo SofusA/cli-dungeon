@@ -12,7 +12,7 @@ use crate::{
     items::ItemType,
     jewelry::JewelryType,
     roll_success,
-    types::{Constitution, Dexterity, Gold, Level, Strength},
+    types::{Constitution, Dexterity, Gold, Level, Strength, Wisdom},
     weapons::WeaponType,
 };
 
@@ -156,7 +156,7 @@ impl MonsterType {
         match self {
             MonsterType::BanditLevel0 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 0, 0),
+                (0, 0, 0, 0),
                 Gold::new(10),
                 vec![Some(WeaponType::Dagger)],
                 vec![Some(WeaponType::MonsterNone)],
@@ -171,18 +171,18 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel1 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 0, 1),
+                (0, 0, 1, 0),
                 Gold::new(20),
                 vec![Some(WeaponType::Dagger), Some(WeaponType::Shortsword)],
                 vec![Some(WeaponType::Dagger), None],
-                vec![Some(ArmorType::Leather), Some(ArmorType::ChainShirt)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D8)),
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D8)),
+                    (ArmorType::StuddedLeather, Some(Dice::D8)),
                 ],
                 vec![],
                 vec![
@@ -192,7 +192,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel2 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (2, 0, 0),
+                (2, 0, 0, 0),
                 Gold::new(50),
                 vec![Some(WeaponType::Dagger), Some(WeaponType::Shortsword)],
                 vec![
@@ -201,7 +201,7 @@ impl MonsterType {
                     Some(WeaponType::Shield),
                     None,
                 ],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
@@ -209,7 +209,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::StudedLeather, Some(Dice::D8)),
+                    (ArmorType::StuddedLeather, Some(Dice::D8)),
                 ],
                 vec![],
                 vec![
@@ -220,13 +220,13 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel3 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (2, 0, 1),
+                (2, 0, 1, 0),
                 Gold::new(50),
                 vec![Some(WeaponType::Shortsword)],
                 vec![Some(WeaponType::Shield), None],
                 vec![
                     Some(ArmorType::Leather),
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                 ],
                 vec![
@@ -237,7 +237,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D8)),
+                    (ArmorType::StuddedLeather, Some(Dice::D8)),
                     (ArmorType::BreastPlate, Some(Dice::D8)),
                 ],
                 vec![],
@@ -249,7 +249,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel4 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (4, 0, 0),
+                (4, 0, 0, 0),
                 Gold::new(100),
                 vec![
                     Some(WeaponType::Dagger),
@@ -257,7 +257,7 @@ impl MonsterType {
                     Some(WeaponType::Longsword),
                 ],
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Shield)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D6)),
@@ -266,7 +266,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::StudedLeather, Some(Dice::D4)),
+                    (ArmorType::StuddedLeather, Some(Dice::D4)),
                 ],
                 vec![],
                 vec![
@@ -277,7 +277,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel4Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 2, 2),
+                (0, 2, 2, 0),
                 Gold::new(100),
                 vec![
                     Some(WeaponType::Dagger),
@@ -285,7 +285,7 @@ impl MonsterType {
                     Some(WeaponType::Rapier),
                 ],
                 vec![Some(WeaponType::Shortsword)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
@@ -293,7 +293,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::StudedLeather, Some(Dice::D4)),
+                    (ArmorType::StuddedLeather, Some(Dice::D4)),
                 ],
                 vec![],
                 vec![
@@ -304,12 +304,12 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel5 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (4, 0, 1),
+                (4, 0, 1, 0),
                 Gold::new(100),
                 vec![Some(WeaponType::Longsword)],
                 vec![Some(WeaponType::Shield), None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                 ],
@@ -319,7 +319,7 @@ impl MonsterType {
                     (WeaponType::Longsword, Some(Dice::D4)),
                 ],
                 vec![
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                 ],
@@ -332,17 +332,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel5Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 4, 1),
+                (0, 4, 1, 0),
                 Gold::new(100),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Dagger)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -352,12 +352,12 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel6 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 0),
+                (6, 0, 0, 0),
                 Gold::new(100),
                 vec![Some(WeaponType::Longsword), Some(WeaponType::GreatSword)],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                 ],
@@ -368,7 +368,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                 ],
@@ -381,17 +381,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel6Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 4, 2),
+                (0, 4, 2, 0),
                 Gold::new(100),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Dagger)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -401,7 +401,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel7 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 1),
+                (6, 0, 1, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -410,7 +410,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -424,7 +424,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                 ],
@@ -437,17 +437,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel7Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 4, 3),
+                (0, 4, 3, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Dagger)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -457,7 +457,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel8 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 2),
+                (6, 0, 2, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -466,7 +466,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -480,7 +480,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                 ],
@@ -493,17 +493,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel8Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 6, 2),
+                (0, 6, 2, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Dagger)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -513,7 +513,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel9 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 3),
+                (6, 0, 3, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -522,7 +522,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -536,7 +536,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                     (ArmorType::ChainMail, Some(Dice::D6)),
@@ -550,17 +550,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel9Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 6, 3),
+                (0, 6, 3, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -570,7 +570,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel10 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 4),
+                (6, 0, 4, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -579,7 +579,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -594,7 +594,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                     (ArmorType::ChainMail, Some(Dice::D6)),
@@ -609,17 +609,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel10Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 6, 4),
+                (0, 6, 4, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -629,7 +629,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel11 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 5),
+                (6, 0, 5, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -638,7 +638,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -653,7 +653,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                     (ArmorType::ChainMail, Some(Dice::D6)),
@@ -668,17 +668,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel11Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 6, 5),
+                (0, 6, 5, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -688,7 +688,7 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel12 => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (6, 0, 6),
+                (6, 0, 6, 0),
                 Gold::new(200),
                 vec![
                     Some(WeaponType::Longsword),
@@ -697,7 +697,7 @@ impl MonsterType {
                 ],
                 vec![None],
                 vec![
-                    Some(ArmorType::ChainShirt),
+                    Some(ArmorType::StuddedLeather),
                     Some(ArmorType::BreastPlate),
                     Some(ArmorType::HalfPlate),
                     Some(ArmorType::ChainMail),
@@ -712,7 +712,7 @@ impl MonsterType {
                 ],
                 vec![
                     (ArmorType::Leather, Some(Dice::D4)),
-                    (ArmorType::ChainShirt, Some(Dice::D6)),
+                    (ArmorType::StuddedLeather, Some(Dice::D6)),
                     (ArmorType::BreastPlate, Some(Dice::D6)),
                     (ArmorType::HalfPlate, Some(Dice::D6)),
                     (ArmorType::ChainMail, Some(Dice::D6)),
@@ -727,17 +727,17 @@ impl MonsterType {
             ),
             MonsterType::BanditLevel12Dex => MonsterDefinition::new_simple(
                 &["Bandit"],
-                (0, 6, 6),
+                (0, 6, 6, 0),
                 Gold::new(200),
                 vec![Some(WeaponType::Shortsword), Some(WeaponType::Rapier)],
                 vec![Some(WeaponType::Shortsword)],
-                vec![Some(ArmorType::Leather), Some(ArmorType::StudedLeather)],
+                vec![Some(ArmorType::Leather), Some(ArmorType::StuddedLeather)],
                 vec![
                     (WeaponType::Dagger, Some(Dice::D4)),
                     (WeaponType::Shortsword, Some(Dice::D4)),
                     (WeaponType::Rapier, Some(Dice::D4)),
                 ],
-                vec![(ArmorType::StudedLeather, Some(Dice::D6))],
+                vec![(ArmorType::StuddedLeather, Some(Dice::D6))],
                 vec![],
                 vec![
                     (ItemType::ScrollOfWeaken, Some(Dice::D8)),
@@ -747,7 +747,7 @@ impl MonsterType {
             ),
             MonsterType::BeastLevel00 => MonsterDefinition::new_simple(
                 &["Rat", "Lizard", "Pig", "Frog", "Crap"],
-                (0, 0, 0),
+                (0, 0, 0, 0),
                 Gold::new(5),
                 vec![None],
                 vec![Some(WeaponType::MonsterNone)],
@@ -759,7 +759,7 @@ impl MonsterType {
             ),
             MonsterType::BeastLevel01 => MonsterDefinition::new_simple(
                 &["Badger", "Goat", "Weasel"],
-                (0, 0, 0),
+                (0, 0, 0, 0),
                 Gold::new(10),
                 vec![None],
                 vec![Some(WeaponType::MonsterD4)],
@@ -771,7 +771,7 @@ impl MonsterType {
             ),
             MonsterType::Wolf => MonsterDefinition::new_simple(
                 &["Wolf"],
-                (0, 1, 0),
+                (0, 1, 0, 0),
                 Gold::new(10),
                 vec![None],
                 vec![Some(WeaponType::MonsterNone)],
@@ -783,7 +783,7 @@ impl MonsterType {
             ),
             MonsterType::DireWolf => MonsterDefinition::new_simple(
                 &["Dire wolf"],
-                (0, 2, 0),
+                (0, 2, 0, 0),
                 Gold::new(30),
                 vec![None],
                 vec![None],
@@ -795,7 +795,7 @@ impl MonsterType {
             ),
             MonsterType::GiantSpider => MonsterDefinition::new_simple(
                 &["Giant spider"],
-                (1, 1, 0),
+                (1, 1, 0, 0),
                 Gold::new(70),
                 vec![Some(WeaponType::MonsterD8)],
                 vec![Some(WeaponType::MonsterNone)],
@@ -807,7 +807,7 @@ impl MonsterType {
             ),
             MonsterType::GiantToad => MonsterDefinition::new_simple(
                 &["Giant toad"],
-                (2, 1, 0),
+                (2, 1, 0, 0),
                 Gold::new(100),
                 vec![Some(WeaponType::MonsterD10)],
                 vec![Some(WeaponType::MonsterNone)],
@@ -819,7 +819,7 @@ impl MonsterType {
             ),
             MonsterType::TestMonster => MonsterDefinition::new(
                 "Test monster",
-                AbilityScores::new(4, 2, 14),
+                AbilityScores::new(0, 0, 0, 0),
                 Gold::new(1),
                 None,
                 None,
@@ -834,7 +834,7 @@ impl MonsterType {
             ),
             MonsterType::TestMonsterWithDagger => MonsterDefinition::new(
                 "Test monster",
-                AbilityScores::new(4, 2, 14),
+                AbilityScores::new(0, 0, 0, 0),
                 Gold::new(1),
                 None,
                 None,
@@ -849,7 +849,7 @@ impl MonsterType {
             ),
             MonsterType::TestMonsterWithLeatherArmor => MonsterDefinition::new(
                 "Test monster",
-                AbilityScores::new(4, 2, 2),
+                AbilityScores::new(0, 0, 0, 0),
                 Gold::new(1),
                 None,
                 None,
@@ -864,7 +864,7 @@ impl MonsterType {
             ),
             MonsterType::TestMonsterWithRingOfProtectionAndStone => MonsterDefinition::new(
                 "Test monster",
-                AbilityScores::new(4, 2, 14),
+                AbilityScores::new(0, 0, 0, 0),
                 Gold::new(1),
                 None,
                 None,
@@ -901,7 +901,7 @@ impl MonsterDefinition {
     #[allow(clippy::too_many_arguments)]
     pub fn new_simple(
         name: &[&str],
-        levels: (i16, i16, i16),
+        levels: (i16, i16, i16, i16),
         gold: Gold,
         equipped_weapon: Vec<Option<WeaponType>>,
         equipped_offhand: Vec<Option<WeaponType>>,
@@ -922,11 +922,13 @@ impl MonsterDefinition {
         let str = 8 + 2 * levels.0;
         let dex = 8 + 2 * levels.1;
         let con = 8 + 2 * levels.2 - level * 2;
+        let wis = 8 + 2 * levels.3;
 
         let base_ability_scores = AbilityScores {
             strength: Strength::new(str),
             dexterity: Dexterity::new(dex),
             constitution: Constitution::new(con),
+            wisdom: Wisdom::new(wis),
         };
 
         let levels = (0..level)

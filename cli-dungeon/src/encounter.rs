@@ -2,7 +2,7 @@ use std::io::Write;
 
 use cli_dungeon_core::turn::{Action, BonusAction, TurnOutcome, take_turn};
 use cli_dungeon_database::{CharacterInfo, Pool};
-use cli_dungeon_rules::{Encounter, character::Character, items::ActionType};
+use cli_dungeon_rules::{Encounter, character::Character, items::ActionType, normalize_name};
 use color_print::{cprint, cprintln};
 use rhai::{CustomType, Dynamic, Engine, ImmutableString, Map, Scope, TypeBuilder};
 
@@ -125,7 +125,7 @@ impl EncounterAction {
         character
             .available_actions()
             .into_iter()
-            .find(|action| action.name.to_lowercase() == self.action.to_lowercase())
+            .find(|action| action.name == normalize_name(&self.action))
             .and_then(|action| match action.action {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
                     self.action_target.map(Action::Attack)
@@ -145,7 +145,7 @@ impl EncounterAction {
         character
             .available_bonus_actions()
             .into_iter()
-            .find(|action| action.name.to_lowercase() == self.bonus_action.to_lowercase())
+            .find(|action| normalize_name(&action.name) == normalize_name(&self.bonus_action))
             .and_then(|action| match action.action {
                 cli_dungeon_rules::character::AvailableAction::Attack => {
                     self.bonus_action_target.map(BonusAction::OffhandAttack)
@@ -252,7 +252,6 @@ fn run_script_get_action(
 
     let result: EncounterAction = engine.eval_ast_with_scope(&mut scope, ast).unwrap();
     let action = result.to_action(character);
-
     let bonus_action = result.to_bonus_action(character);
 
     Some((action, bonus_action))
@@ -285,7 +284,7 @@ pub fn ensure_default_script() -> std::path::PathBuf {
     script_path
 }
 
-pub(crate) async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo) {
+pub async fn handle_encounter(pool: &Pool, character_info: &CharacterInfo) {
     let script_path = ensure_default_script();
 
     let engine = build_engine();
@@ -388,7 +387,9 @@ mod tests {
         character::{Character, CharacterType},
         items::ItemType,
         monsters::MonsterType,
-        types::{Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength},
+        types::{
+            Constitution, Dexterity, Experience, Gold, HealthPoints, QuestPoint, Strength, Wisdom,
+        },
     };
 
     use crate::encounter::{build_engine, default_encounter_script, run_script_get_action};
@@ -405,6 +406,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(8),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -433,6 +435,7 @@ mod tests {
                 strength: Strength::new(8),
                 dexterity: Dexterity::new(8),
                 constitution: Constitution::new(8),
+                wisdom: Wisdom::new(8),
             },
             gold: Gold::new(0),
             experience: Experience::new(0),
@@ -482,7 +485,7 @@ mod tests {
         let (encounter, character) = setup();
 
         let script = r#"
-            react("scrollofweaken", 2, "PotionOfHealing");
+            react("scrollofweaken", 2, "potionofhealing");
         "#;
 
         let ast = engine.compile(script).unwrap();

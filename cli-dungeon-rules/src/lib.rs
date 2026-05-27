@@ -1,5 +1,6 @@
 use crate::{
     character::Character,
+    conditions::ActiveCondition,
     types::{AbilityScoreBonus, HealthPoints},
 };
 
@@ -58,9 +59,10 @@ pub struct AttackStats {
     pub attack_dice: Vec<Dice>,
     pub attack_bonus: AbilityScoreBonus,
     pub hit_bonus: AbilityScoreBonus,
+    pub condition_on_hit: Option<ActiveCondition>,
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub enum Status {
     #[default]
     Resting,
@@ -80,4 +82,8 @@ pub struct Hit {
     pub damage: HealthPoints,
     pub critical_hit: bool,
     pub character_name: String,
+}
+
+pub fn normalize_name(string: &str) -> String {
+    string.to_lowercase().replace([' ', '_'], "")
 }

@@ -1,4 +1,7 @@
-use crate::types::{Constitution, Dexterity, Strength};
+use crate::{
+    normalize_name,
+    types::{Constitution, Dexterity, Strength, Wisdom},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum AbilityScaling {
@@ -13,6 +16,7 @@ pub enum AbilityType {
     Strength,
     Dexterity,
     Constitution,
+    Wisdom,
 }
 
 impl AbilityType {
@@ -27,11 +31,12 @@ impl AbilityType {
     }
 
     pub fn from_ability_str(string: &str) -> Option<Self> {
-        let string = string.to_lowercase();
+        let string = normalize_name(string);
         match string.as_str() {
             "strength" => Some(Self::Strength),
             "dexterity" => Some(Self::Dexterity),
             "constitution" => Some(Self::Constitution),
+            "wisdom" => Some(Self::Wisdom),
             _ => None,
         }
     }
@@ -42,14 +47,16 @@ pub struct AbilityScores {
     pub strength: Strength,
     pub dexterity: Dexterity,
     pub constitution: Constitution,
+    pub wisdom: Wisdom,
 }
 
 impl AbilityScores {
-    pub fn new(strength: i16, dexterity: i16, constitution: i16) -> Self {
+    pub fn new(strength: i16, dexterity: i16, constitution: i16, wisdom: i16) -> Self {
         Self {
             strength: Strength::new(strength),
             dexterity: Dexterity::new(dexterity),
             constitution: Constitution::new(constitution),
+            wisdom: Wisdom::new(wisdom),
         }
     }
 }
